@@ -19,6 +19,7 @@ public class Main {
 	public static HashMap<String, Integer> tagFeature2Index = new HashMap<>();
 	
 	public static double[] tagFeatureWeights = null;	// Feature sized weight array that we use in LBFGS-B
+	public static double[] tagFeatureGradients = null;
 
 	public static void main(String[] args) {
 		
@@ -35,6 +36,7 @@ public class Main {
 		fillTransitionMap();	// Creating transitionProbabilities map
 		fillEmissionMap(sentence);	// Creating emissionProbabilities map
 		tagFeatureWeights = createWeightsArray(transitionProbabilities, emissionProbabilities);
+		tagFeatureGradients = createZeroArray(tagFeatureWeights.length);
 		fillFeatures(transitionProbabilities, emissionProbabilities);
 		
 		
@@ -400,15 +402,15 @@ public class Main {
 		}
 	}
 
-//	private static double[] createUniformArray(int size){
-//		double[] array = new double[size];
-//		
-//		for(int i = 0; i < size; i++){
-//			array[i] = 1.0/size;
-//		}
-//		
-//		return array;
-//	}
+	private static double[] createZeroArray(int size){
+		double[] array = new double[size];
+		
+		for(int i = 0; i < size; i++){
+			array[i] = 0.0;
+		}
+		
+		return array;
+	}
 
 	// For creating list values uniformly
 	private static ArrayList<Double> createUniformList(int size){
