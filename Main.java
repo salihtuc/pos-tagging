@@ -3,6 +3,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
 
+import lbfgsb.LBFGSBException;
+import lbfgsb.Minimizer;
+import lbfgsb.Result;
+
 public class Main {
 	
 	
@@ -75,6 +79,25 @@ public class Main {
 		// Iterate over targetMap
 		iterateFromStartToEnd(targetMap);
 		iterateFromEndToStart(targetMap);
+		
+		
+		/* LBFGS-B part */
+		Minimizer alg = new Minimizer();
+        alg.getStopConditions().setMaxIterations(500);
+        alg.setDebugLevel(1);
+        
+		Result ret;
+		try {
+			ret = alg.run(new Function(), tagFeatureWeights);
+			
+			double finalValue = ret.functionValue;
+	        double [] finalGradient = ret.gradient;
+	        
+		} catch (LBFGSBException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+        
 		
 //		List<Node> list = new ArrayList<Node>(targetMap.values());
 //		ListIterator itr = list.listIterator(list.size());
