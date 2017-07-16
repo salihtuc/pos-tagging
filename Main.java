@@ -12,6 +12,7 @@ public class Main {
 	
 	
 	public static int tagSize = 12;
+	public static ArrayList<String> words=new ArrayList<>();
 	public static HashMap<Integer, HashMap<Integer, Node>> globalMap = new HashMap<>();	// Holds all lattices
 	
 	public static HashMap<String, Double> transitionProbabilities = new HashMap<>();
@@ -139,14 +140,15 @@ public class Main {
 		}
 	}
 	
-	private static void fillEmissionMap(String sentence){
-		String[] words = sentence.split(" ");
-		//double value = 1.0 / (tagSize * words.length);	// For uniform values
-		double value = 0.0;	// For zero values
-		
-		for(int i = 0; i < tagSize; i++){
-			for(String word : words){
-				emissionProbabilities.put(tagList.get(i) + "-" + word, value);
+	private static void fillEmissionMap(String sentence) {
+		String[] word = sentence.split(" ");
+		words= new ArrayList<String>(Arrays.asList(word));
+		// double value = 1.0 / (tagSize * words.length); // For uniform values
+		double value = 0.0; // For zero values
+
+		for (int i = 0; i < tagSize; i++) {
+			for (String wordd : words) {
+				emissionProbabilities.put(tagList.get(i) + "-" + wordd, value);
 			}
 		}
 	}
@@ -551,53 +553,80 @@ public class Main {
 		return scores;
 	}
 	
-	public double[] gradient(double[] iterWeights) {
+public double[] gradient(double[] iterWeights) {
 
 		double[] grad = new double[iterWeights.length];
-		
-		/*re-estimation of transition probabilities*/
-		for (int i=0;i<tagSize;i++){
-			for (int j=0;j<tagSize;j++){
-				double num=0;
-				double denom=0;
-				
+		HashMap<String, Double> gradtransitionProbabilities = new HashMap<>();
+		HashMap<String, Double> grademissionProbabilities = new HashMap<>();
+
+		/* re-estimation of transition probabilities */
+		for (int i = 0; i < tagSize; i++) {
+			for (int j = 0; j < tagSize; j++) {
+				double num = 0;
+				double denom = 0;
+				for (int a = 0; a < globalMap.size(); a++) {
+					for (int k = 0; k < globalMap.get(a).size(); k++) {
+						num += p(i, j, globalMap.get(a).get(k));
+						denom += gamma(i, globalMap.get(a).get(k));
+
+					}
+				}
+				gradtransitionProbabilities.put((tagList.get(i) + "-" + tagList.get(j)), divide(num, denom));
 			}
 		}
-		
-		/*re-estimation of emission probabilities*/
 
+		/* re-estimation of emission probabilities */
+		for (int i = 0; i < tagSize; i++) {
+			for (int j = 0; j < words.size(); j++) {
+				double num = 0;
+				double denom = 0;
+				for (int a = 0; a < globalMap.size(); a++) {
+					for (int k = 0; k < globalMap.get(a).size(); k++) {
+						double g=gamma(i, globalMap.get(a).get(k));
+						num+=g;
+						denom+=g;
+					}
+				}
+				grademissionProbabilities.put(tagList.get(i) + "-" + words.get(j), divide(num,denom));
+			}
+		}
+		grad=createWeightsArray(gradtransitionProbabilities,grademissionProbabilities);
 		return grad;
 
 	}
-	  /** 
-    @param i the number of state s_i
-    @param j the number of state s_j
-    @return P
-*/
-	public double p(int i,int j,Node node){
-		double num,denom=0.0;
-		num=node.alpha.get(i)*transitionProbabilities.get(tagList.get(i) + "-" + tagList.get(j))*emissionProbabilities.get(tagList.get(i) + "-" + node.word)*node.beta.get(j);
-		
-		for(int k=0;k<tagSize;k++){
-			denom+=node.alpha.get(k)*node.beta.get(k);
-		}
-		
-		return divide(num,denom);
-	}
-	
-	 /** computes gamma(i, node) */
-	
-	public double gamma(int i,Node node){
-		double num,denom=0.0;
-		num=node.alpha.get(i)*node.beta.get(i);
 
-		for(int k=0;k<tagSize;k++){
-			denom+=node.alpha.get(k)*node.beta.get(k);
+	/**
+	 * @param i
+	 *            the number of state s_i
+	 * @param j
+	 *            the number of state s_j
+	 * @return P
+	 */
+	public double p(int i, int j, Node node) {
+		double num, denom = 0.0;
+		num = node.alpha.get(i) * transitionProbabilities.get(tagList.get(i) + "-" + tagList.get(j))
+				* emissionProbabilities.get(tagList.get(i) + "-" + node.word) * node.beta.get(j);
+
+		for (int k = 0; k < tagSize; k++) {
+			denom += node.alpha.get(k) * node.beta.get(k);
 		}
-		
-		return divide(num,denom);
+
+		return divide(num, denom);
 	}
-	
+
+	/** computes gamma(i, node) */
+
+	public double gamma(int i, Node node) {
+		double num, denom = 0.0;
+		num = node.alpha.get(i) * node.beta.get(i);
+
+		for (int k = 0; k < tagSize; k++) {
+			denom += node.alpha.get(k) * node.beta.get(k);
+		}
+
+		return divide(num, denom);
+	}
+
 	/** divides two doubles. 0 / 0 = 0! */
 	public double divide(double n, double d) {
 		if (n == 0)
@@ -606,3 +635,4 @@ public class Main {
 			return n / d;
 	}
 }
+
