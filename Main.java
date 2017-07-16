@@ -550,4 +550,39 @@ public class Main {
 		
 		return scores;
 	}
+	
+		public double[] gradient(double[] iterWeights) {
+
+		double[] grad = new double[iterWeights.length];
+
+		return grad;
+
+	}
+	  /** calculation of probability P(X_t = s_i, X_t+1 = s_j | O, m).
+    @param t time t
+    @param i the number of state s_i
+    @param j the number of state s_j
+    @param o an output sequence o
+    @param fwd the Forward-Variables for o
+    @param bwd the Backward-Variables for o
+    @return P
+*/
+	public double p(){
+		return 0.0;
+	}
+	
+	 /** computes gamma(i, t) */
+	
+	public double gamma(){
+	
+		return 0.0;
+	}
+	
+	/** divides two doubles. 0 / 0 = 0! */
+	public double divide(double n, double d) {
+		if (n == 0)
+			return 0;
+		else
+			return n / d;
+	}
 }
