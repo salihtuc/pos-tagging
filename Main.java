@@ -551,31 +551,51 @@ public class Main {
 		return scores;
 	}
 	
-		public double[] gradient(double[] iterWeights) {
+	public double[] gradient(double[] iterWeights) {
 
 		double[] grad = new double[iterWeights.length];
+		
+		/*re-estimation of transition probabilities*/
+		for (int i=0;i<tagSize;i++){
+			for (int j=0;j<tagSize;j++){
+				double num=0;
+				double denom=0;
+				
+			}
+		}
+		
+		/*re-estimation of emission probabilities*/
 
 		return grad;
 
 	}
-	  /** calculation of probability P(X_t = s_i, X_t+1 = s_j | O, m).
-    @param t time t
+	  /** 
     @param i the number of state s_i
     @param j the number of state s_j
-    @param o an output sequence o
-    @param fwd the Forward-Variables for o
-    @param bwd the Backward-Variables for o
     @return P
 */
-	public double p(){
-		return 0.0;
+	public double p(int i,int j,Node node){
+		double num,denom=0.0;
+		num=node.alpha.get(i)*transitionProbabilities.get(tagList.get(i) + "-" + tagList.get(j))*emissionProbabilities.get(tagList.get(i) + "-" + node.word)*node.beta.get(j);
+		
+		for(int k=0;k<tagSize;k++){
+			denom+=node.alpha.get(k)*node.beta.get(k);
+		}
+		
+		return divide(num,denom);
 	}
 	
-	 /** computes gamma(i, t) */
+	 /** computes gamma(i, node) */
 	
-	public double gamma(){
-	
-		return 0.0;
+	public double gamma(int i,Node node){
+		double num,denom=0.0;
+		num=node.alpha.get(i)*node.beta.get(i);
+
+		for(int k=0;k<tagSize;k++){
+			denom+=node.alpha.get(k)*node.beta.get(k);
+		}
+		
+		return divide(num,denom);
 	}
 	
 	/** divides two doubles. 0 / 0 = 0! */
