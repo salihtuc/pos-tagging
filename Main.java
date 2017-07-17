@@ -1,4 +1,11 @@
+/*
+ * @author: Necva Bolucu (@necvabolucu)
+ * @author: Salih Tuc (@salihtuc)
+ * 
+ * */
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
@@ -8,9 +15,7 @@ import lbfgsb.Minimizer;
 import lbfgsb.Result;
 
 public class Main {
-	
-	
-	
+
 	public static int tagSize = 12;
 	public static ArrayList<String> words=new ArrayList<>();
 	public static HashMap<Integer, HashMap<Integer, Node>> globalMap = new HashMap<>();	// Holds all lattices
@@ -73,13 +78,16 @@ public class Main {
 //			System.out.println(a[i]);
 //		}
 		
-		HashMap<Integer, Node> targetMap = latticeMap1;
-		System.out.println("Lattice:\n" + targetMap);
-		System.out.println("----------------------");
+		for(int i = 0; i < globalMap.size(); i++) {
+			HashMap<Integer, Node> targetMap = globalMap.get(i);
+			System.out.println("Lattice: " + i + "\n" + targetMap);
+			System.out.println("----------------------");
+			
+			// Iterate over targetMap
+			iterateFromStartToEnd(targetMap);
+			iterateFromEndToStart(targetMap);
 		
-		// Iterate over targetMap
-		iterateFromStartToEnd(targetMap);
-		iterateFromEndToStart(targetMap);
+		}
 		
 		
 		/* LBFGS-B part */
@@ -93,6 +101,9 @@ public class Main {
 			
 			double finalValue = ret.functionValue;
 	        double [] finalGradient = ret.gradient;
+	        
+	        System.out.println("Gradients:");
+	        printDoubleArray(finalGradient);
 	        
 		} catch (LBFGSBException e) {
 			// TODO Auto-generated catch block
@@ -108,9 +119,9 @@ public class Main {
 //		}
 		
 		// Printing the scores
-		for(Node n : targetMap.values()){
-			System.out.println(n.tagScores);
-		}
+//		for(Node n : targetMap.values()){
+//			System.out.println(n.tagScores);
+//		}
 		
 		// Time operations. Just using for information.
 		long endTime = System.nanoTime();
@@ -119,6 +130,12 @@ public class Main {
 		
 	}
 	
+	protected static void printDoubleArray(double[] array) {
+		for(double d : array) {
+			System.out.print(d + " ");
+		}
+		System.out.println();
+	}
 	private static void fillTagList(){
 		tagList.add("t1");
 		tagList.add("t2");
@@ -129,9 +146,9 @@ public class Main {
 	}
 	
 	private static void fillTransitionMap(){
-		//double value = 1.0 / (tagSize*tagSize);	// For uniform values
+		double value = 1.0 / (tagSize*tagSize);	// For uniform values
 		
-		double value = 0.0;	// For zero values
+		//double value = 0.0;	// For zero values
 		
 		for(int i = 0; i < (tagSize); i++){
 			for(int j = 0; j < (tagSize); j++){
@@ -140,14 +157,14 @@ public class Main {
 		}
 	}
 	
-	private static void fillEmissionMap(String sentence) {
+	private static void fillEmissionMap(String sentence){
 		String[] word = sentence.split(" ");
 		words= new ArrayList<String>(Arrays.asList(word));
-		// double value = 1.0 / (tagSize * words.length); // For uniform values
-		double value = 0.0; // For zero values
-
-		for (int i = 0; i < tagSize; i++) {
-			for (String wordd : words) {
+		double value = 1.0 / (tagSize * word.length);	// For uniform values
+		//double value = 0.0;	// For zero values
+		
+		for(int i = 0; i < tagSize; i++){
+			for(String wordd : words){
 				emissionProbabilities.put(tagList.get(i) + "-" + wordd, value);
 			}
 		}
@@ -168,7 +185,7 @@ public class Main {
 		}
 	}
 	
-	private static double[] createWeightsArray(HashMap<String, Double> transitionMap, HashMap<String, Double> emissionMap) {
+	protected static double[] createWeightsArray(HashMap<String, Double> transitionMap, HashMap<String, Double> emissionMap) {
 		int size = transitionMap.size() + emissionMap.size();
 		
 		double[] weights = new double[size];
@@ -552,87 +569,4 @@ public class Main {
 		
 		return scores;
 	}
-	
-public double[] gradient(double[] iterWeights) {
-
-		double[] grad = new double[iterWeights.length];
-		HashMap<String, Double> gradtransitionProbabilities = new HashMap<>();
-		HashMap<String, Double> grademissionProbabilities = new HashMap<>();
-
-		/* re-estimation of transition probabilities */
-		for (int i = 0; i < tagSize; i++) {
-			for (int j = 0; j < tagSize; j++) {
-				double num = 0;
-				double denom = 0;
-				for (int a = 0; a < globalMap.size(); a++) {
-					for (int k = 0; k < globalMap.get(a).size(); k++) {
-						num += p(i, j, globalMap.get(a).get(k));
-						denom += gamma(i, globalMap.get(a).get(k));
-
-					}
-				}
-				gradtransitionProbabilities.put((tagList.get(i) + "-" + tagList.get(j)), divide(num, denom));
-			}
-		}
-
-		/* re-estimation of emission probabilities */
-		for (int i = 0; i < tagSize; i++) {
-			for (int j = 0; j < words.size(); j++) {
-				double num = 0;
-				double denom = 0;
-				for (int a = 0; a < globalMap.size(); a++) {
-					for (int k = 0; k < globalMap.get(a).size(); k++) {
-						double g=gamma(i, globalMap.get(a).get(k));
-						num+=g;
-						denom+=g;
-					}
-				}
-				grademissionProbabilities.put(tagList.get(i) + "-" + words.get(j), divide(num,denom));
-			}
-		}
-		grad=createWeightsArray(gradtransitionProbabilities,grademissionProbabilities);
-		return grad;
-
-	}
-
-	/**
-	 * @param i
-	 *            the number of state s_i
-	 * @param j
-	 *            the number of state s_j
-	 * @return P
-	 */
-	public double p(int i, int j, Node node) {
-		double num, denom = 0.0;
-		num = node.alpha.get(i) * transitionProbabilities.get(tagList.get(i) + "-" + tagList.get(j))
-				* emissionProbabilities.get(tagList.get(i) + "-" + node.word) * node.beta.get(j);
-
-		for (int k = 0; k < tagSize; k++) {
-			denom += node.alpha.get(k) * node.beta.get(k);
-		}
-
-		return divide(num, denom);
-	}
-
-	/** computes gamma(i, node) */
-
-	public double gamma(int i, Node node) {
-		double num, denom = 0.0;
-		num = node.alpha.get(i) * node.beta.get(i);
-
-		for (int k = 0; k < tagSize; k++) {
-			denom += node.alpha.get(k) * node.beta.get(k);
-		}
-
-		return divide(num, denom);
-	}
-
-	/** divides two doubles. 0 / 0 = 0! */
-	public double divide(double n, double d) {
-		if (n == 0)
-			return 0;
-		else
-			return n / d;
-	}
 }
-
