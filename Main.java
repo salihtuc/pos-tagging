@@ -17,7 +17,8 @@ import lbfgsb.Result;
 public class Main {
 
 	public static int tagSize = 12;
-	public static ArrayList<String> words=new ArrayList<>();
+	public static ArrayList<String> sentences = new ArrayList<>();
+	public static ArrayList<String> words = new ArrayList<>();
 	public static HashMap<Integer, HashMap<Integer, Node>> globalMap = new HashMap<>();	// Holds all lattices
 	
 	public static HashMap<String, Double> transitionProbabilities = new HashMap<>();
@@ -36,6 +37,19 @@ public class Main {
 		// Time operations. Just using for information.
 		long startTime = System.nanoTime();
 		
+//		Reading sentences from a file.
+//		
+//		try (BufferedReader br = new BufferedReader(new FileReader("input.txt"))) {
+//
+//			String line;
+//
+//			while ((line = br.readLine()) != null) {
+//				sentences.add(line);
+//			}
+//
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
 		
 		String sentence = "<s> Natural language is a delicate thing";
 		
@@ -102,8 +116,11 @@ public class Main {
 			double finalValue = ret.functionValue;
 	        double [] finalGradient = ret.gradient;
 	        
+	        System.out.println("Final Value: " + finalValue);
 	        System.out.println("Gradients:");
 	        printDoubleArray(finalGradient);
+	        
+	        updateProbabilities(finalGradient);
 	        
 		} catch (LBFGSBException e) {
 			// TODO Auto-generated catch block
@@ -217,7 +234,12 @@ public class Main {
 				if((i-1) >= 0){
 					n.prev.add(i-1);
 				}
+				
+				if(i == N) {
+					n.isEndState = true;
+				}
 				lattice.put(i, n);
+				
 			}
 		}
 		else if(latticeType == 1){	// Negative Lattice 1 : Del1Word
@@ -230,6 +252,10 @@ public class Main {
 					
 					if(i != 0){
 						n.prev.add(i-1);
+					}
+					
+					if(i == N || i == N-1) {
+						n.isEndState = true;
 					}
 					
 					lattice.put(i, n);
@@ -245,6 +271,14 @@ public class Main {
 					}
 					if(i+N+1 < 2*N){
 						n1.next.add(i+N+1);
+					}
+					
+					if(i == N) {
+						n1.isEndState = true;
+						n2.isEndState = true;
+					}
+					else if(i == N-1) {
+						n2.isEndState = true;
 					}
 					
 					int j = i+N-1;
@@ -327,6 +361,9 @@ public class Main {
 					n3.prev.add(k-N+1);
 					n3.prev.add(k-1);
 					
+					n1.isEndState = true;
+					n3.isEndState = true;
+					
 					lattice.put(i, n1);
 					lattice.put(j, n2);
 					lattice.put(k, n3);
@@ -387,6 +424,7 @@ public class Main {
 					
 					if(i == 1){
 						n1.prev.add(i-1);
+						n1.isEndState = true;
 					}
 					
 					for(int j = i+N+1; j < (2*N); j++){
@@ -404,6 +442,12 @@ public class Main {
 					if(i == N-1){
 						n1.next.add(i+1);
 						n2.next.add(j+1);
+						n1.isEndState = true;
+					}
+					
+					if(i == N) {
+						n1.isEndState = true;
+						n2.isEndState = true;
 					}
 					
 					n1.prev.add(i-1);
@@ -424,6 +468,8 @@ public class Main {
 					
 					n1.next.add(i+1);
 					n2.next.add(j+1);
+					
+					n1.isEndState = true;
 					
 					n1.prev.add(i-1);
 					if(j-1 != N)
@@ -568,5 +614,29 @@ public class Main {
 		}
 		
 		return scores;
+	}
+	
+	public static ArrayList<Node> returnEndStates(HashMap<Integer, Node> lattice){
+		
+		ArrayList<Node> endStates = new ArrayList<>();
+		
+		for(Node n : lattice.values()) {
+			if(n.isEndState) {
+				endStates.add(n);
+			}
+		}
+		
+		return endStates;
+	}
+	
+	public static void updateProbabilities(double[] weights) {
+		for(int i = 0; i < weights.length; i++) {
+			if(i < transitionProbabilities.size()) {
+				transitionProbabilities.put(featureList.get(i), weights[i]);
+			}
+			else {
+				emissionProbabilities.put(featureList.get(i), weights[i]);
+			}
+		}
 	}
 }

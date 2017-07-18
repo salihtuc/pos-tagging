@@ -40,12 +40,13 @@ public class Node {
 		else{
 			this.isStartState = false;
 		}
+		
+		this.isEndState = false;
 	}
 
 	@Override
 	public String toString() {
-		return stateNum + ": " + word + " (next: " + next + " | prev: " + prev + ") ";
+		return stateNum + ": " + word + " (next: " + next + " | prev: " + prev + " | is end state: " + isEndState + ") ";
 	}
-	
 	
 }

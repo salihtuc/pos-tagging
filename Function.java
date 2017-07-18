@@ -5,6 +5,7 @@
  * */
 
 import java.util.HashMap;
+import java.util.List;
 
 import lbfgsb.DifferentiableFunction;
 import lbfgsb.FunctionValues;
@@ -15,21 +16,36 @@ public class Function implements DifferentiableFunction {
 	// -------------------------------------- LBFGS-B
 	// ---------------------------------------------------------
 
-	//public double a = 5.0;
+	public double functionValue = 0.0;
 
 	@Override
 	public FunctionValues getValues(double[] point) {
 
 		System.out.println("Points:");
 		Main.printDoubleArray(point);
-
 		
-		// TODO
-		
-		//a = a + 3.0; // A small trying
-		
-		return new FunctionValues(0.0, gradient(point));
+		return new FunctionValues(functionValue(), gradient(point));
 	}
+	
+	public double functionValue() {
+
+		double sumNum = 0.0;
+		double sumDenom = 0.0;
+		
+		int counter = 0;
+        for(HashMap<Integer, Node> map : Main.globalMap.values()) {
+        		for(Node endState : Main.returnEndStates(map)) {
+        			if(counter == 0) {
+        				sumNum += addListValues(endState.tagScores);
+        			}
+        			else {
+        				sumDenom += addListValues(endState.tagScores);
+        			}
+        		}
+        }
+        
+        return functionValue + ((sumNum - sumDenom));
+    }
 
 	public double[] gradient(double[] iterWeights) {
 
@@ -126,6 +142,17 @@ public class Function implements DifferentiableFunction {
 		}
 		
 		return weights;
+	}
+	
+	public double addListValues(List<Double> list) {
+		
+		double sum = 0.0;
+		
+		for(double d : list) {
+			sum += d;
+		}
+		
+		return sum;
 	}
 
 }
