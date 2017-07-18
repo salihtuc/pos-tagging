@@ -52,6 +52,18 @@ public class Function implements DifferentiableFunction {
 		double[] grad = new double[iterWeights.length];
 		HashMap<String, Double> gradtransitionProbabilities = new HashMap<>();
 		HashMap<String, Double> grademissionProbabilities = new HashMap<>();
+		
+		HashMap<String, Double> gradinitialstateOrobabilities = new HashMap<>();
+		
+		/*Initial state */
+	    /* re-estimation of initial state probabilities */
+	      for (int i = 0; i < Main.tagSize; i++){
+	    	  for (int a = 0; a < Main.globalMap.size(); a++) {
+					for (int k = 0; k < Main.globalMap.get(a).size(); k++) {
+						gradinitialstateOrobabilities.put("<s>-"+Main.tagList.get(i), gamma(0,Main.globalMap.get(a).get(k)));
+					}
+					}
+	      }
 
 		/* re-estimation of transition probabilities */
 		for (int i = 0; i < Main.tagSize; i++) {
@@ -77,7 +89,7 @@ public class Function implements DifferentiableFunction {
 				for (int a = 0; a < Main.globalMap.size(); a++) {
 					for (int k = 0; k < Main.globalMap.get(a).size(); k++) {
 						double g = gamma(i, Main.globalMap.get(a).get(k));
-						num += g;
+						num += g*(Main.words.get(j)==  Main.globalMap.get(a).get(k).word? 1 : 0);
 						denom += g;
 					}
 				}
