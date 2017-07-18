@@ -93,12 +93,7 @@ public class Function implements DifferentiableFunction {
 						denom += g;
 					}
 				}
-				grademissionProbabilities.put(Main.tagList.get(i) + "-" + Main.words.get(j), divide(num, denom)); // NUM/DENOM
-																													// is
-																													// always
-																													// 1.0
-																													// !!
-			}
+				grademissionProbabilities.put(Main.tagList.get(i) + "-" + Main.words.get(j), divide(num, denom)); 		}
 		}
 		grad = Main.createWeightsArray(gradtransitionProbabilities, grademissionProbabilities);
 		return grad;
