@@ -242,6 +242,10 @@ public class Function implements DifferentiableFunction {
 //			}
 //		}
 
+<<<<<<< HEAD
+=======
+		/* re-estimation of transition probabilities */
+>>>>>>> da8f91d62a55c120bcf7b38916a123605c1761e1
 		for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
 			for (int i = 0; i < Main.tagSize; i++) {
 				for (int j = 0; j < Main.tagSize; j++) {
@@ -251,12 +255,18 @@ public class Function implements DifferentiableFunction {
 						for (int k = 0; k < globalMap.get(a).size() - 1; k++) {
 							for (int k1 : globalMap.get(a).get(k).next) {
 								Node n2 = globalMap.get(a).get(k1);
+<<<<<<< HEAD
 								for(int k2 = 0; k2 < Main.tagSize; k2++) {
 									denom += p(i, k2, globalMap.get(a).get(k), n2);
 								}
 								num += p(i, j, globalMap.get(a).get(k), n2);
 							}
 							
+=======
+								num += p(i, j, globalMap.get(a).get(k), n2);
+							}
+							denom += gamma(i, globalMap.get(a).get(k));
+>>>>>>> da8f91d62a55c120bcf7b38916a123605c1761e1
 						}
 					}
 					gradtransitionProbabilities.put((Main.tagList.get(i) + "-" + Main.tagList.get(j)),
@@ -301,8 +311,13 @@ public class Function implements DifferentiableFunction {
 		if(node.isEndState)
 			num=node.alpha.get(i)*Main.transitionProbabilities.get(Main.tagList.get(i) + "-" + Main.tagList.get(j));
 		else
+<<<<<<< HEAD
 			num = node.alpha.get(i) * Main.transitionProbabilities.get(Main.tagList.get(i) + "-" + Main.tagList.get(j))
 				* Main.emissionProbabilities.get(Main.tagList.get(j) + "-" + next.word) * next.beta.get(j);
+=======
+		num = node.alpha.get(i) * Main.transitionProbabilities.get(Main.tagList.get(i) + "-" + Main.tagList.get(j))
+				* Main.emissionProbabilities.get(Main.tagList.get(i) + "-" + next.word) * next.beta.get(j);
+>>>>>>> da8f91d62a55c120bcf7b38916a123605c1761e1
 
 		for (int k = 0; k < Main.tagSize; k++) {
 			denom += node.alpha.get(k) * node.beta.get(k);
