@@ -9,12 +9,14 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
 
 import lbfgsb.LBFGSBException;
-import lbfgsb.Minimizer;
+//import lbfgsb.Minimizer;
 import lbfgsb.Result;
 
 public class Main {
@@ -22,6 +24,10 @@ public class Main {
 	public static int tagSize = 5;
 	public static ArrayList<String> sentences = new ArrayList<>();
 	public static ArrayList<String> words = new ArrayList<>();
+	
+	public static ArrayList<String> allWords = new ArrayList<>();
+	public static HashSet<String> uniqueValues;
+	
 	public static HashMap<Integer, HashMap<Integer, Node>> globalMap;	// Holds all lattices
 	
 	public static ArrayList<HashMap<Integer, HashMap<Integer, Node>>> sentenceGlobals = new ArrayList<>();
@@ -43,18 +49,25 @@ public class Main {
 		long startTime = System.nanoTime();
 		
 		
-		try (BufferedReader br = new BufferedReader(new FileReader("PennCorpus12.txt"))) {
+		try (BufferedReader br = new BufferedReader(new FileReader("input.txt"))) {
 
 			String start = "<s> ";
 			String line;
 
 			while ((line = br.readLine()) != null) {
 				sentences.add(start + line.toLowerCase());
+				
+				allWords.addAll(Arrays.asList((start + line.toLowerCase()).split(" ")));
+				
 			}
 
+			uniqueValues = new HashSet<>(allWords);
+			allWords.clear();
+			allWords.addAll(uniqueValues);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		
 		//String sentence = "<s> Natural language is a delicate thing";
 		
 		
@@ -115,6 +128,8 @@ public class Main {
 			}
 		
 		}
+		
+		for(int i = 0; i < 1; i++) {
 		/* LBFGS-B part */
 		Minimizer alg = new Minimizer();
         alg.getStopConditions().setMaxIterations(500);
@@ -137,7 +152,7 @@ public class Main {
 		} catch (LBFGSBException e) {
 			e.printStackTrace();
 		}
-        
+		}
 		
 //		List<Node> list = new ArrayList<Node>(targetMap.values());
 //		ListIterator itr = list.listIterator(list.size());
@@ -189,7 +204,7 @@ public class Main {
 	private static void fillEmissionMap(String sentence){
 		String[] word = sentence.split(" ");
 		words= new ArrayList<String>(Arrays.asList(word));
-		double value = 1.0 / (tagSize * word.length);	// For uniform values
+		double value = 1.0 / (allWords.size());	// For uniform values
 		//double value = 0.0;	// For zero values
 		
 		for(int i = 0; i < tagSize; i++){
