@@ -68,19 +68,23 @@ public class Function implements DifferentiableFunction {
 //			}
 //		}
 
-		for(HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
+		/* re-estimation of transition probabilities */
+		for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
 			for (int i = 0; i < Main.tagSize; i++) {
 				for (int j = 0; j < Main.tagSize; j++) {
 					double num = 0;
 					double denom = 0;
 					for (int a = 0; a < globalMap.size(); a++) {
-						for (int k = 0; k < globalMap.get(a).size()-1; k++) {
-							num += p(i, j, globalMap.get(a).get(k),globalMap.get(a).get(k+1));
+						for (int k = 0; k < globalMap.get(a).size() - 1; k++) {
+							for (int k1 : globalMap.get(a).get(k).next) {
+								Node n2 = globalMap.get(a).get(k1);
+								num += p(i, j, globalMap.get(a).get(k), n2);
+							}
 							denom += gamma(i, globalMap.get(a).get(k));
-	
 						}
 					}
-					gradtransitionProbabilities.put((Main.tagList.get(i) + "-" + Main.tagList.get(j)), divide(num, denom));
+					gradtransitionProbabilities.put((Main.tagList.get(i) + "-" + Main.tagList.get(j)),
+							divide(num, denom));
 				}
 			}
 		}
