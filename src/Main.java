@@ -4,6 +4,9 @@
  * 
  * */
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -16,10 +19,12 @@ import lbfgsb.Result;
 
 public class Main {
 
-	public static int tagSize = 12;
+	public static int tagSize = 5;
 	public static ArrayList<String> sentences = new ArrayList<>();
 	public static ArrayList<String> words = new ArrayList<>();
-	public static HashMap<Integer, HashMap<Integer, Node>> globalMap = new HashMap<>();	// Holds all lattices
+	public static HashMap<Integer, HashMap<Integer, Node>> globalMap;	// Holds all lattices
+	
+	public static ArrayList<HashMap<Integer, HashMap<Integer, Node>>> sentenceGlobals = new ArrayList<>();
 	
 	public static HashMap<String, Double> transitionProbabilities = new HashMap<>();
 	public static HashMap<String, Double> emissionProbabilities = new HashMap<>();
@@ -37,54 +42,61 @@ public class Main {
 		// Time operations. Just using for information.
 		long startTime = System.nanoTime();
 		
-//		Reading sentences from a file.
-//		
-//		try (BufferedReader br = new BufferedReader(new FileReader("input.txt"))) {
-//
-//			String line;
-//
-//			while ((line = br.readLine()) != null) {
-//				sentences.add(line);
-//			}
-//
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
 		
-		String sentence = "<s> Natural language is a delicate thing";
+		try (BufferedReader br = new BufferedReader(new FileReader("PennCorpus12.txt"))) {
+
+			String start = "<s> ";
+			String line;
+
+			while ((line = br.readLine()) != null) {
+				sentences.add(start + line.toLowerCase());
+			}
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		//String sentence = "<s> Natural language is a delicate thing";
 		
 		
 		// Initialization of features and tags.
 		
 		fillTagList();	// Creating tags (filling tagList)
 		fillTransitionMap();	// Creating transitionProbabilities map
-		fillEmissionMap(sentence);	// Creating emissionProbabilities map
+		
+		for(String sentence : sentences)
+			fillEmissionMap(sentence);	// Creating emissionProbabilities map
+		
 		tagFeatureWeights = createWeightsArray(transitionProbabilities, emissionProbabilities);
 		tagFeatureGradients = createZeroArray(tagFeatureWeights.length);
 		fillFeatures(transitionProbabilities, emissionProbabilities);
 		
 		
-		System.out.println("Transitions:\n" + transitionProbabilities);
-		System.out.println("------------\nEmissions:\n" + emissionProbabilities + "\n-----------");
+//		System.out.println("Transitions:\n" + transitionProbabilities);
+//		System.out.println("------------\nEmissions:\n" + emissionProbabilities + "\n-----------");
 		
 		
-		// Create all lattices and put them into the globalMap
-		HashMap<Integer, Node> latticeMap = new HashMap<>();	// Original sentence
-		fillLattice(sentence.split(" "), latticeMap, 0);
-		globalMap.put(0, latticeMap);
+		for(String sentence : sentences) {
+			
+			globalMap = new HashMap<>();
+			// Create all lattices and put them into the globalMap
+			HashMap<Integer, Node> latticeMap = new HashMap<>();	// Original sentence
+			fillLattice(sentence.split(" "), latticeMap, 0);
+			globalMap.put(0, latticeMap);
+			
+			HashMap<Integer, Node> latticeMap1 = new HashMap<>();	// Negative sample 1 (DEL1WORD)
+			fillLattice(sentence.split(" "), latticeMap1, 1);
+			globalMap.put(1, latticeMap1);
+			
+			HashMap<Integer, Node> latticeMap2 = new HashMap<>();	// Negative sample 2 (TRANS)
+			fillLattice(sentence.split(" "), latticeMap2, 2);
+			globalMap.put(2, latticeMap2);
+			
+			HashMap<Integer, Node> latticeMap3 = new HashMap<>();	// Negative sample 3 (DEL1SUBSEQ)
+			fillLattice(sentence.split(" "), latticeMap3, 3);
+			globalMap.put(3, latticeMap3);
 		
-		HashMap<Integer, Node> latticeMap1 = new HashMap<>();	// Negative sample 1 (DEL1WORD)
-		fillLattice(sentence.split(" "), latticeMap1, 1);
-		globalMap.put(1, latticeMap1);
 		
-		HashMap<Integer, Node> latticeMap2 = new HashMap<>();	// Negative sample 2 (TRANS)
-		fillLattice(sentence.split(" "), latticeMap2, 2);
-		globalMap.put(2, latticeMap2);
-		
-		HashMap<Integer, Node> latticeMap3 = new HashMap<>();	// Negative sample 3 (DEL1SUBSEQ)
-		fillLattice(sentence.split(" "), latticeMap3, 3);
-		globalMap.put(3, latticeMap3);
-		
+			sentenceGlobals.add(globalMap);
 		
 //		double[] a = createUniformArray(tagSize);
 //		
@@ -92,18 +104,17 @@ public class Main {
 //			System.out.println(a[i]);
 //		}
 		
-		for(int i = 0; i < globalMap.size(); i++) {
-			HashMap<Integer, Node> targetMap = globalMap.get(i);
-			System.out.println("Lattice: " + i + "\n" + targetMap);
-			System.out.println("----------------------");
-			
-			// Iterate over targetMap
-			iterateFromStartToEnd(targetMap);
-			iterateFromEndToStart(targetMap);
+			for(int j = 0; j < globalMap.size(); j++) {
+				HashMap<Integer, Node> targetMap = globalMap.get(j);
+//				System.out.println("Lattice: " + j + "\n" + targetMap);
+//				System.out.println("----------------------");
+				
+				// Iterate over targetMap
+				iterateFromStartToEnd(targetMap);
+				iterateFromEndToStart(targetMap);
+			}
 		
 		}
-		
-		
 		/* LBFGS-B part */
 		Minimizer alg = new Minimizer();
         alg.getStopConditions().setMaxIterations(500);
@@ -121,9 +132,9 @@ public class Main {
 	        printDoubleArray(finalGradient);
 	        
 	        updateProbabilities(finalGradient);
+	        tagFeatureWeights = finalGradient;
 	        
 		} catch (LBFGSBException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
         
@@ -158,6 +169,7 @@ public class Main {
 		tagList.add("t2");
 		tagList.add("t3");
 		tagList.add("t4");
+		tagList.add("<s>");
 		
 		tagSize = tagList.size();
 	}
@@ -182,7 +194,8 @@ public class Main {
 		
 		for(int i = 0; i < tagSize; i++){
 			for(String wordd : words){
-				emissionProbabilities.put(tagList.get(i) + "-" + wordd, value);
+				if(!emissionProbabilities.containsKey(tagList.get(i) + "-" + wordd))
+					emissionProbabilities.put(tagList.get(i) + "-" + wordd, value);
 			}
 		}
 	}
@@ -501,35 +514,61 @@ public class Main {
 	}
 
 	// For creating list values uniformly
-	private static ArrayList<Double> createUniformList(int size){
+	private static ArrayList<Double> createUniformList(int size, boolean isStartState, String decide){
 		ArrayList<Double> list = new ArrayList<>();
+		double initialValue;
 		
-		for(int i = 0; i < size; i++){
-			list.add(1.0/size);
+		if(decide.equals("alpha")) {
+			initialValue = Math.PI;
 		}
+		else {
+			initialValue = 1.0;
+		}
+		
+		if(isStartState) {
+			for(int i = 0; i < size; i++){
+				if(i == size-1) {
+					list.add(1.0);
+				}
+				else {
+					list.add(0.0);
+				}
+			}
+		}
+		else {
+			for(int i = 0; i < size; i++){
+				if(i == size-1) {
+					list.add(0.0);
+				}
+				else {
+					list.add(initialValue/(size-1));
+				}
+			}
+		}
+		
 		
 		return list;
 	}
 	
-	// For creating list values with zeros
-	private static ArrayList<Double> createZeroList(int size){
-		ArrayList<Double> list = new ArrayList<>();
-		
-		for(int i = 0; i < size; i++){
-			list.add(0.0);
-		}
-		
-		return list;
-	}
+//	// For creating list values with zeros
+//	private static ArrayList<Double> createZeroList(int size){
+//		ArrayList<Double> list = new ArrayList<>();
+//		
+//		for(int i = 0; i < size; i++){
+//			list.add(0.0);
+//		}
+//		
+//		return list;
+//	}
 	
 	// Iteration from start to end. Using for alpha values.
 	public static void iterateFromStartToEnd(HashMap<Integer, Node> latticeMap){
 		for(Node node : latticeMap.values()){
 			if(node.prev.isEmpty()){	// Start node
-				node.alpha = createUniformList(tagSize);
+				node.alpha = createUniformList(tagSize, node.isStartState, "alpha");
 			}
 			else if(node.next.isEmpty()){	// End node
-				node.beta = createUniformList(tagSize);
+				node.beta = createUniformList(tagSize, node.isStartState, "beta");
 				node.alpha = calculateValue(node.prev, node, latticeMap, "alpha");
 				node.tagScores = multiply(node.alpha, node.beta);
 			}
@@ -544,7 +583,7 @@ public class Main {
 	// Iteration from end to start. Using for beta values
 	public static void iterateFromEndToStart(HashMap<Integer, Node> latticeMap){
 		List<Node> list = new ArrayList<Node>(latticeMap.values());
-		ListIterator iterator = list.listIterator(list.size());
+		ListIterator<Node> iterator = list.listIterator(list.size());
 		
 		while(iterator.hasPrevious()){
 			Node node = (Node) iterator.previous();
@@ -599,7 +638,7 @@ public class Main {
 			}
 		}
 
-		return sum;
+		return sum*emissionProbabilities.get(tagList.get(tagNumber) + "-" + n.word);
 	}
 	
 	

@@ -1,5 +1,4 @@
 import java.util.ArrayList;
-import java.util.HashMap;
 
 public class Node {
 	int stateNum;
@@ -46,7 +45,7 @@ public class Node {
 
 	@Override
 	public String toString() {
-		return stateNum + ": " + word + " (next: " + next + " | prev: " + prev + " | is end state: " + isEndState + ") ";
+		return stateNum + ": " + word + " (next: " + next + " | prev: " + prev + ") ";
 	}
 	
 }

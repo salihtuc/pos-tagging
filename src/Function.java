@@ -1,3 +1,4 @@
+
 /*
  * @author: Necva Bolucu (@necvabolucu)
  * @author: Salih Tuc (@salihtuc)
@@ -9,7 +10,6 @@ import java.util.List;
 
 import lbfgsb.DifferentiableFunction;
 import lbfgsb.FunctionValues;
-
 
 public class Function implements DifferentiableFunction {
 
@@ -23,77 +23,85 @@ public class Function implements DifferentiableFunction {
 
 		System.out.println("Points:");
 		Main.printDoubleArray(point);
-		
+
 		return new FunctionValues(functionValue(), gradient(point));
 	}
-	
+
 	public double functionValue() {
 
-		double sumNum = 0.0;
-		double sumDenom = 0.0;
-		
-		int counter = 0;
-        for(HashMap<Integer, Node> map : Main.globalMap.values()) {
-        		for(Node endState : Main.returnEndStates(map)) {
-        			if(counter == 0) {
-        				sumNum += addListValues(endState.tagScores);
-        			}
-        			else {
-        				sumDenom += addListValues(endState.tagScores);
-        			}
-        		}
-        }
-        
-        return functionValue + ((sumNum - sumDenom));
-    }
+		for(HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
+			int counter = 0;
+			double sumNum = 0.0;
+			double sumDenom = 0.0;
+			for (HashMap<Integer, Node> map : globalMap.values()) {
+				for (Node endState : Main.returnEndStates(map)) {
+					if (counter == 0) {
+						sumNum += addListValues(endState.tagScores);
+					} else {
+						sumDenom += addListValues(endState.tagScores);
+					}
+				}
+			}
+	
+			functionValue += (sumNum - sumDenom);
+		}
+
+		return functionValue;
+	}
 
 	public double[] gradient(double[] iterWeights) {
 
 		double[] grad = new double[iterWeights.length];
 		HashMap<String, Double> gradtransitionProbabilities = new HashMap<>();
 		HashMap<String, Double> grademissionProbabilities = new HashMap<>();
-		
-		HashMap<String, Double> gradinitialstateOrobabilities = new HashMap<>();
-		
-		/*Initial state */
-	    /* re-estimation of initial state probabilities */
-	      for (int i = 0; i < Main.tagSize; i++){
-	    	  for (int a = 0; a < Main.globalMap.size(); a++) {
-					for (int k = 0; k < Main.globalMap.get(a).size(); k++) {
-						gradinitialstateOrobabilities.put("<s>-"+Main.tagList.get(i), gamma(0,Main.globalMap.get(a).get(k)));
-					}
-					}
-	      }
+
+//		HashMap<String, Double> gradinitialstateOrobabilities = new HashMap<>();
+//
+//		/* Initial state */
+//		/* re-estimation of initial state probabilities */
+//		for (int i = 0; i < Main.tagSize; i++) {
+//			for (int a = 0; a < Main.globalMap.size(); a++) {
+//				for (int k = 0; k < Main.globalMap.get(a).size(); k++) {
+//					gradinitialstateOrobabilities.put("<s>-" + Main.tagList.get(i),
+//							gamma(0, Main.globalMap.get(a).get(k)));
+//				}
+//			}
+//		}
 
 		/* re-estimation of transition probabilities */
-		for (int i = 0; i < Main.tagSize; i++) {
-			for (int j = 0; j < Main.tagSize; j++) {
-				double num = 0;
-				double denom = 0;
-				for (int a = 0; a < Main.globalMap.size(); a++) {
-					for (int k = 0; k < Main.globalMap.get(a).size(); k++) {
-						num += p(i, j, Main.globalMap.get(a).get(k));
-						denom += gamma(i, Main.globalMap.get(a).get(k));
-
+		for(HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
+			for (int i = 0; i < Main.tagSize; i++) {
+				for (int j = 0; j < Main.tagSize; j++) {
+					double num = 0;
+					double denom = 0;
+					for (int a = 0; a < globalMap.size(); a++) {
+						for (int k = 0; k < globalMap.get(a).size(); k++) {
+							num += p(i, j, globalMap.get(a).get(k));
+							denom += gamma(i, globalMap.get(a).get(k));
+	
+						}
 					}
+					gradtransitionProbabilities.put((Main.tagList.get(i) + "-" + Main.tagList.get(j)), divide(num, denom));
 				}
-				gradtransitionProbabilities.put((Main.tagList.get(i) + "-" + Main.tagList.get(j)), divide(num, denom));
 			}
 		}
 
 		/* re-estimation of emission probabilities */
-		for (int i = 0; i < Main.tagSize; i++) {
-			for (int j = 0; j < Main.words.size(); j++) {
-				double num = 0;
-				double denom = 0;
-				for (int a = 0; a < Main.globalMap.size(); a++) {
-					for (int k = 0; k < Main.globalMap.get(a).size(); k++) {
-						double g = gamma(i, Main.globalMap.get(a).get(k));
-						num += g*(Main.words.get(j)==  Main.globalMap.get(a).get(k).word? 1 : 0);
-						denom += g;
+		for(HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
+			for (int i = 0; i < Main.tagSize; i++) {
+				for (int j = 0; j < Main.words.size(); j++) {
+					double num = 0;
+					double denom = 0;
+					for (int a = 0; a < globalMap.size(); a++) {
+						for (int k = 0; k < globalMap.get(a).size(); k++) {
+							double g = gamma(i, globalMap.get(a).get(k));
+							num += g * (Main.words.get(j).equals(globalMap.get(a).get(k).word) ? 1 : 0);
+							denom += g;
+						}
 					}
+					grademissionProbabilities.put(Main.tagList.get(i) + "-" + Main.words.get(j), divide(num, denom));
 				}
-				grademissionProbabilities.put(Main.tagList.get(i) + "-" + Main.words.get(j), divide(num, denom)); 		}
+			}
 		}
 		grad = Main.createWeightsArray(gradtransitionProbabilities, grademissionProbabilities);
 		return grad;
@@ -139,26 +147,26 @@ public class Function implements DifferentiableFunction {
 		else
 			return n / d;
 	}
-	
+
 	public double[] updateWeights(double[] weights, double[] gradients) {
-		
+
 		double lambdaValue = 0.0;
-		
-		for(int i = 0; i < weights.length; i++) {
+
+		for (int i = 0; i < weights.length; i++) {
 			weights[i] += (gradients[i] - lambdaValue);
 		}
-		
+
 		return weights;
 	}
-	
+
 	public double addListValues(List<Double> list) {
-		
+
 		double sum = 0.0;
-		
-		for(double d : list) {
+
+		for (double d : list) {
 			sum += d;
 		}
-		
+
 		return sum;
 	}
 
