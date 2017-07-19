@@ -242,11 +242,11 @@ public class Function implements DifferentiableFunction {
 //			}
 //		}
 
-		for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
 			for (int i = 0; i < Main.tagSize; i++) {
 				for (int j = 0; j < Main.tagSize; j++) {
 					double num = 0;
 					double denom = 0;
+					for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
 					for (int a = 0; a < globalMap.size(); a++) {
 						for (int k = 0; k < globalMap.get(a).size() - 1; k++) {
 							for (int k1 : globalMap.get(a).get(k).next) {
@@ -259,33 +259,37 @@ public class Function implements DifferentiableFunction {
 							
 						}
 					}
+					}
 					gradtransitionProbabilities.put((Main.tagList.get(i) + "-" + Main.tagList.get(j)),
 							divide(num, denom));
 				}
-			}
+			
 		}
 
 		/* re-estimation of emission probabilities */
-		for(HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
+	
 			for (int i = 0; i < Main.tagSize; i++) {
-				
+				for (int j = 0; j < Main.allWords.size(); j++) {
 					double num = 0;
 					double denom = 0;
-					for (int a = 0; a < globalMap.size(); a++) {
+						for(HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
+							for (int a = 0; a < globalMap.size(); a++) {
 						for (int k = 0; k < globalMap.get(a).size(); k++) {
-							for (int j = 0; j < Main.allWords.size(); j++) {
+							
 							double g = gamma(i, globalMap.get(a).get(k));
 							num += g * (Main.allWords.get(j).equals(globalMap.get(a).get(k).word) ? 1 : 0);
 							denom += g;
-							grademissionProbabilities.put(Main.tagList.get(i) + "-" + Main.allWords.get(j), divide(num, denom));
+							
 						}
 					}
-					
-				}
+						}
+					grademissionProbabilities.put(Main.tagList.get(i) + "-" + Main.allWords.get(j), divide(num, denom));
+				
 			}
 		}
 		grad = Main.createWeightsArray(gradtransitionProbabilities, grademissionProbabilities);
 		return grad;
+
 
 	}
 
