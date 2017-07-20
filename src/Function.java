@@ -61,10 +61,10 @@ public class Function implements DifferentiableFunction {
 		HashMap<String, Double> gradtransitionProbabilities = new HashMap<>();
 		HashMap<String, Double> grademissionProbabilities = new HashMap<>();
 
-		for (int i = 0; i < Main.tagSize; i++) {
+			for (int i = 0; i < Main.tagSize; i++) {
 			for (int j = 0; j < Main.tagSize; j++) {
-				double transOriginalNum = 0.0; double transOriginalDenom=0;
-				double transNeighborNum = 0.0; double transNeighborDenom = 0.0;
+				double transOriginal = 0.0;
+				double transNeighbor = 0.0;
 				for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
 
 					for (int a = 0; a < globalMap.size(); a++) {
@@ -84,15 +84,13 @@ public class Function implements DifferentiableFunction {
 
 						}
 						if (a == 0) {
-							transOriginalNum += num;
-							transOriginalDenom+=denom;
+							transOriginal += divide(num, denom);
 						} else {
-							transNeighborNum += num;
-							transNeighborDenom+=denom;
+							transNeighbor += divide(num, denom);
 						}
 					}
 				}
-				gradtransitionProbabilities.put((Main.tagList.get(i) + "-" + Main.tagList.get(j)),divide(transOriginalNum,transOriginalDenom)-divide(transNeighborNum,transNeighborDenom));
+				gradtransitionProbabilities.put((Main.tagList.get(i) + "-" + Main.tagList.get(j)),transOriginal-transNeighbor);
 			}
 
 		}
@@ -129,8 +127,8 @@ public class Function implements DifferentiableFunction {
 
 		for (int i = 0; i < Main.tagSize; i++) {
 			for (int j = 0; j < Main.allWords.size(); j++) {
-				double emissionOriginalNum = 0.0;double emissionOriginalDenom=0;
-				double emissionNeighborNum = 0.0; double emissionNeighborDenom=0;
+				double emissionOriginal = 0.0;
+				double emissionNeighbor = 0.0;
 
 				for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
 					for (int a = 0; a < globalMap.size(); a++) {
@@ -146,15 +144,13 @@ public class Function implements DifferentiableFunction {
 
 						}
 						if (a == 0) {
-							emissionOriginalNum += num;
-							emissionOriginalDenom+=denom;
+							emissionOriginal += divide(num, denom);
 						} else {
-							emissionNeighborNum += num;
-							emissionNeighborDenom+=denom;
+							emissionNeighbor += divide(num, denom);
 						}
 					}
 				}
-				grademissionProbabilities.put(Main.tagList.get(i) + "-" + Main.allWords.get(j), divide(emissionOriginalNum,emissionOriginalDenom)-divide(emissionNeighborNum,emissionNeighborDenom));
+				grademissionProbabilities.put(Main.tagList.get(i) + "-" + Main.allWords.get(j), emissionOriginal-emissionNeighbor);
 
 			}
 		}
