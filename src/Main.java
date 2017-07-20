@@ -9,7 +9,6 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -132,7 +131,7 @@ public class Main {
 		for(int i = 0; i < 1; i++) {
 		/* LBFGS-B part */
 		Minimizer alg = new Minimizer();
-        alg.getStopConditions().setMaxIterations(500);
+        alg.getStopConditions().setMaxIterations(10);
         alg.setDebugLevel(1);
         
 		Result ret;
@@ -692,5 +691,17 @@ public class Main {
 				emissionProbabilities.put(featureList.get(i), weights[i]);
 			}
 		}
+	}
+	
+	public static ArrayList<String> returnUniqueWords(HashMap<Integer, Node> lattice) {
+		ArrayList<String> uniqueWords = new ArrayList<>();
+		
+		for(Node n : lattice.values()) {
+			if(!uniqueWords.contains(n.word)) {
+				uniqueWords.add(n.word);
+			}
+		}
+		
+		return uniqueWords;
 	}
 }
