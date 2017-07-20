@@ -61,13 +61,18 @@ public class Function implements DifferentiableFunction {
 		HashMap<String, Double> gradtransitionProbabilities = new HashMap<>();
 		HashMap<String, Double> grademissionProbabilities = new HashMap<>();
 
-		for (int i = 0; i < Main.tagSize; i++) {
+				for (int i = 0; i < Main.tagSize; i++) {
 			for (int j = 0; j < Main.tagSize; j++) {
-				double num = 0;
-				double denom = 0;
+				double transOriginal = 0.0;
+				double transNeighbor = 0.0;
 				for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
+
 					for (int a = 0; a < globalMap.size(); a++) {
+						double num = 0;
+						double denom = 0;
+
 						HashMap<Integer, Node> lattice = globalMap.get(a);
+
 						for (int k = 0; k < lattice.size() - 1; k++) {
 							for (int k1 : lattice.get(k).next) {
 								Node n2 = lattice.get(k1);
@@ -78,47 +83,59 @@ public class Function implements DifferentiableFunction {
 							}
 
 						}
+						if (a == 0) {
+							transOriginal = divide(num, denom);
+						} else {
+							transNeighbor += divide(num, denom);
+						}
 					}
 				}
-				gradtransitionProbabilities.put((Main.tagList.get(i) + "-" + Main.tagList.get(j)), divide(num, denom));
+				gradtransitionProbabilities.put((Main.tagList.get(i) + "-" + Main.tagList.get(j)),transOriginal-transNeighbor);
 			}
 
 		}
 
-//		/* re-estimation of emission probabilities */
-//		
-//		for (int i = 0; i < Main.tagSize; i++) {
-//			double num = 0;
-//			double denom = 0;
-//			
-//			for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
-//				for (int a = 0; a < globalMap.size(); a++) {
-//					ArrayList<String> uniqueWords = Main.returnUniqueWords(globalMap.get(a));
-//					for (int k = 0; k < globalMap.get(a).size(); k++) {
-//						for (int j = 0; j < uniqueWords.size(); j++) {
-//							
-//							double g = gamma(i, globalMap.get(a).get(k));
-//							num += g * (uniqueWords.get(j).equals(globalMap.get(a).get(k).word) ? 1 : 0);
-//							denom += g;
-//							grademissionProbabilities.put(Main.tagList.get(i) + "-" + uniqueWords.get(j),
-//									divide(num, denom));
-//						}
-//					}
-//				}
-//
-//			}
-//		}
+		// /* re-estimation of emission probabilities */
+		//
+		// for (int i = 0; i < Main.tagSize; i++) {
+		// double num = 0;
+		// double denom = 0;
+		//
+		// for (HashMap<Integer, HashMap<Integer, Node>> globalMap :
+		// Main.sentenceGlobals) {
+		// for (int a = 0; a < globalMap.size(); a++) {
+		// ArrayList<String> uniqueWords =
+		// Main.returnUniqueWords(globalMap.get(a));
+		// for (int k = 0; k < globalMap.get(a).size(); k++) {
+		// for (int j = 0; j < uniqueWords.size(); j++) {
+		//
+		// double g = gamma(i, globalMap.get(a).get(k));
+		// num += g * (uniqueWords.get(j).equals(globalMap.get(a).get(k).word) ?
+		// 1 : 0);
+		// denom += g;
+		// grademissionProbabilities.put(Main.tagList.get(i) + "-" +
+		// uniqueWords.get(j),
+		// divide(num, denom));
+		// }
+		// }
+		// }
+		//
+		// }
+		// }
 
-		
-/* re-estimation of emission probabilities */
-		
+		/* re-estimation of emission probabilities */
+
 		for (int i = 0; i < Main.tagSize; i++) {
 			for (int j = 0; j < Main.allWords.size(); j++) {
-				double num = 0;
-				double denom = 0;
+				double emissionOriginal = 0.0;
+				double emissionNeighbor = 0.0;
+
 				for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
 					for (int a = 0; a < globalMap.size(); a++) {
-						//TODO ArrayList<String> uniqueWords = Main.returnUniqueWords(globalMap.get(a));
+						double num = 0;
+						double denom = 0;
+						// TODO ArrayList<String> uniqueWords =
+						// Main.returnUniqueWords(globalMap.get(a));
 						for (int k = 0; k < globalMap.get(a).size(); k++) {
 
 							double g = gamma(i, globalMap.get(a).get(k));
@@ -126,9 +143,14 @@ public class Function implements DifferentiableFunction {
 							denom += g;
 
 						}
+						if (a == 0) {
+							emissionOriginal = divide(num, denom);
+						} else {
+							emissionNeighbor += divide(num, denom);
+						}
 					}
 				}
-				grademissionProbabilities.put(Main.tagList.get(i) + "-" + Main.allWords.get(j), divide(num, denom));
+				grademissionProbabilities.put(Main.tagList.get(i) + "-" + Main.allWords.get(j), emissionOriginal-emissionNeighbor);
 
 			}
 		}
