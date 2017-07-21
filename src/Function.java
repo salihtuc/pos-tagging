@@ -126,6 +126,64 @@ public class Function implements DifferentiableFunction {
 		//
 		// }
 		// }
+		
+			/* re-estimation of emission probabilities   NEW VERSION*/ 
+//		for (int i = 0; i < Main.tagSize; i++) {
+//			HashMap<String, Double> originalwordsNum = new HashMap<String, Double>();
+//			HashMap<String, Double> NeighborswordsNum = new HashMap<String, Double>();
+//			double emissionOriginalDenom = 0.0;
+//			double emissionNeighborDenom = 0.0;
+//
+//			for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
+//				for (int a = 0; a < globalMap.size(); a++) {
+//					double num = 0;
+//					double denom = 0;
+//					// TODO ArrayList<String> uniqueWords =
+//					// Main.returnUniqueWords(globalMap.get(a));
+//					for (int k = 0; k < globalMap.get(a).size(); k++) {
+//						Node node = globalMap.get(a).get(k);
+//
+//						double g = gamma(i, node);
+//
+//						if (a == 0) {
+//							if (originalwordsNum.containsKey(node.word)) {
+//								originalwordsNum.put(node.word, originalwordsNum.get(node.word) + g);
+//								
+//							} else {
+//								originalwordsNum.put(node.word, g);
+//							}
+//							emissionOriginalDenom += g;
+//
+//						} else {
+//							if (NeighborswordsNum.containsKey(node.word)) {
+//								NeighborswordsNum.put(node.word, NeighborswordsNum.get(node.word) + g);
+//								
+//							} else {
+//								NeighborswordsNum.put(node.word, g);
+//							}
+//							emissionNeighborDenom += g;
+//
+//						}
+//
+//					}
+//
+//				}
+//			}
+//			
+//			Iterator it = originalwordsNum.entrySet().iterator();
+//			Iterator it2 = NeighborswordsNum.entrySet().iterator();
+//			while (it.hasNext()) {
+//			    Map.Entry pairs = (Map.Entry)it.next();
+//			    Double firstVal = (Double) pairs.getValue();
+//			    Map.Entry pairs2 = (Map.Entry)it2.next();
+//			    Double secondVal = (Double) pairs2.getValue();
+//			    grademissionProbabilities.put(Main.tagList.get(i) + "-" + pairs.getKey(),
+//						divide(firstVal, emissionOriginalDenom)
+//								- divide(secondVal, emissionNeighborDenom));
+//			    
+//
+//			}
+//		}
 
 		/* re-estimation of emission probabilities */
 
