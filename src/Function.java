@@ -57,14 +57,14 @@ public class Function implements DifferentiableFunction {
 
 	public double[] gradient(double[] iterWeights) {
 
-				double[] grad = new double[iterWeights.length];
+		double[] grad = new double[iterWeights.length];
 		HashMap<String, Double> gradtransitionProbabilities = new HashMap<>();
 		HashMap<String, Double> grademissionProbabilities = new HashMap<>();
 
-			for (int i = 0; i < Main.tagSize; i++) {
+						for (int i = 0; i < Main.tagSize; i++) {
 			for (int j = 0; j < Main.tagSize; j++) {
-				double transOriginal = 0.0;
-				double transNeighbor = 0.0;
+				double transOriginalNum = 0.0; double transOriginalDenom = 0.0;
+				double transNeighborNum = 0.0; double transNeighborDenom = 0.0;
 				for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
 
 					for (int a = 0; a < globalMap.size(); a++) {
@@ -84,13 +84,17 @@ public class Function implements DifferentiableFunction {
 
 						}
 						if (a == 0) {
-							transOriginal += divide(num, denom);
+							transOriginalNum += num;
+							transOriginalDenom+=denom;
+							
 						} else {
-							transNeighbor += divide(num, denom);
+							transNeighborNum += num;
+							transNeighborDenom+=denom;
+							
 						}
 					}
 				}
-				gradtransitionProbabilities.put((Main.tagList.get(i) + "-" + Main.tagList.get(j)),transOriginal-transNeighbor);
+				gradtransitionProbabilities.put((Main.tagList.get(i) + "-" + Main.tagList.get(j)),divide(transOriginalNum,transOriginalDenom)-divide(transNeighborNum,transNeighborDenom));
 			}
 
 		}
@@ -127,8 +131,8 @@ public class Function implements DifferentiableFunction {
 
 		for (int i = 0; i < Main.tagSize; i++) {
 			for (int j = 0; j < Main.allWords.size(); j++) {
-				double emissionOriginal = 0.0;
-				double emissionNeighbor = 0.0;
+				double emissionOriginalNum = 0.0; double emissionOriginalDenom = 0.0;
+				double emissionNeighborNum = 0.0; double emissionNeighborDenom = 0.0;
 
 				for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
 					for (int a = 0; a < globalMap.size(); a++) {
@@ -144,13 +148,17 @@ public class Function implements DifferentiableFunction {
 
 						}
 						if (a == 0) {
-							emissionOriginal += divide(num, denom);
+							emissionOriginalNum += num;
+							emissionOriginalDenom+=denom;
+							
 						} else {
-							emissionNeighbor += divide(num, denom);
+							emissionNeighborNum += num;
+							emissionNeighborDenom+=denom;
+							
 						}
 					}
 				}
-				grademissionProbabilities.put(Main.tagList.get(i) + "-" + Main.allWords.get(j), emissionOriginal-emissionNeighbor);
+				grademissionProbabilities.put(Main.tagList.get(i) + "-" + Main.allWords.get(j), divide(emissionOriginalNum,emissionOriginalDenom)-divide(emissionNeighborNum,emissionNeighborDenom));
 
 			}
 		}
