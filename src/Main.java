@@ -203,7 +203,7 @@ public class Main {
 	private static void fillEmissionMap(String sentence){
 		String[] word = sentence.split(" ");
 		words= new ArrayList<String>(Arrays.asList(word));
-		double value = 1.0 / (allWords.size());	// For uniform values
+		double value = divide(1.0 ,allWords.size());	// For uniform values
 		//double value = 0.0;	// For zero values
 		
 		for(int i = 0; i < tagSize; i++){
@@ -703,5 +703,14 @@ public class Main {
 		}
 		
 		return uniqueWords;
+	}
+		/** divides two doubles. 0 / 0 = 0! */
+	public static double divide(double n, double d) {
+		if (n == 0)
+			return 0;
+		else if(d==0)
+			return 0;
+		else
+			return n / d;
 	}
 }
