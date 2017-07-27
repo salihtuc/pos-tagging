@@ -271,10 +271,12 @@ public class Function implements DifferentiableFunction {
 	public double divide(double n, double d) {
 		if (n == 0)
 			return 0;
+		else if(d==0)
+			return 0;
 		else
 			return n / d;
 	}
-
+		
 	public double[] updateWeights(double[] weights, double[] gradients) {
 
 		double lambdaValue = 0.0;
