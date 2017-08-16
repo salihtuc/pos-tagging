@@ -1,3 +1,4 @@
+
 /*
  * @author: Necva Bolucu (@necvabolucu)
  * @author: Salih Tuc (@salihtuc)
@@ -5,8 +6,11 @@
  * */
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -20,7 +24,9 @@ import lbfgsb.Result;
 
 public class Main {
 
-	public static int tagSize = 5;
+	//public static PrintWriter pw = null;
+	
+	public static int tagSize = 13;
 	public static ArrayList<String> sentences = new ArrayList<>();
 	public static ArrayList<String> words = new ArrayList<>();
 	
@@ -46,10 +52,15 @@ public class Main {
 		
 		// Time operations. Just using for information.
 		long startTime = System.nanoTime();
+//		try {
+//			//pw = new PrintWriter(new File("outp.txt"));
+//		} catch (FileNotFoundException e1) {
+//			// TODO Auto-generated catch block
+//			e1.printStackTrace();
+//		}
 		
-		
+		//try (BufferedReader br = new BufferedReader(new FileReader("PennCorpus12.txt"))) {
 		try (BufferedReader br = new BufferedReader(new FileReader("input.txt"))) {
-
 			String start = "<s> ";
 			String line;
 
@@ -128,7 +139,6 @@ public class Main {
 		
 		}
 		
-		for(int i = 0; i < 1; i++) {
 		/* LBFGS-B part */
 		Minimizer alg = new Minimizer();
         alg.getStopConditions().setMaxIterations(10);
@@ -141,7 +151,7 @@ public class Main {
 			double finalValue = ret.functionValue;
 	        double [] finalGradient = ret.gradient;
 	        
-	        System.out.println("Final Value: " + finalValue);
+	        System.out.println("Final Value: " + finalValue*(-1));
 	        System.out.println("Gradients:");
 	        printDoubleArray(finalGradient);
 	        
@@ -150,7 +160,6 @@ public class Main {
 	        
 		} catch (LBFGSBException e) {
 			e.printStackTrace();
-		}
 		}
 		
 //		List<Node> list = new ArrayList<Node>(targetMap.values());
@@ -169,20 +178,30 @@ public class Main {
 		long endTime = System.nanoTime();
 		long duration = (endTime - startTime);  //divide by 1000000 to get milliseconds.
 		System.out.println("\nRunning time: " + duration + " nanoseconds ~ " + duration/1000000 + " milliseconds");
-		
+		//pw.close();
 	}
 	
 	protected static void printDoubleArray(double[] array) {
 		for(double d : array) {
 			System.out.print(d + " ");
+			//Main.pw.print(d + " ");
 		}
 		System.out.println();
+		//Main.pw.println();
 	}
 	private static void fillTagList(){
 		tagList.add("t1");
 		tagList.add("t2");
 		tagList.add("t3");
 		tagList.add("t4");
+		tagList.add("t5");
+		tagList.add("t6");
+		tagList.add("t7");
+		tagList.add("t8");
+		tagList.add("t9");
+		tagList.add("t10");
+		tagList.add("t11");
+		tagList.add("t12");
 		tagList.add("<s>");
 		
 		tagSize = tagList.size();
@@ -203,7 +222,7 @@ public class Main {
 	private static void fillEmissionMap(String sentence){
 		String[] word = sentence.split(" ");
 		words= new ArrayList<String>(Arrays.asList(word));
-		double value = divide(1.0 ,allWords.size());	// For uniform values
+		double value = 1.0 / (allWords.size());	// For uniform values
 		//double value = 0.0;	// For zero values
 		
 		for(int i = 0; i < tagSize; i++){
@@ -613,7 +632,7 @@ public class Main {
 	// Calculates values for alpha or beta.
 	public static ArrayList<Double> calculateValue(List<Integer> neighbors, Node n, HashMap<Integer, Node> latticeMap, String decide){
 		if(decide.equals("alpha")){
-			for(int i = 0; i < tagSize; i++){
+			for(int i = 0; i < tagSize-1; i++){
 				double finalResult = 0;
 				for(int counter : neighbors){
 					Node n2 = latticeMap.get(counter);
@@ -622,11 +641,12 @@ public class Main {
 				}
 				n.alpha.add(i, finalResult);
 			}
+			n.alpha.add(tagSize-1, 0.0);
 			
 			return n.alpha;
 		}
 		else{
-			for(int i = 0; i < tagSize; i++){
+			for(int i = 0; i < tagSize-1; i++){
 				double finalResult = 0;
 				for(int counter : neighbors){
 					Node n2 = latticeMap.get(counter);
@@ -635,6 +655,7 @@ public class Main {
 				}
 				n.beta.add(i, finalResult);
 			}
+			n.beta.add(tagSize-1, 0.0);
 			
 			return n.beta;
 		}
@@ -703,14 +724,5 @@ public class Main {
 		}
 		
 		return uniqueWords;
-	}
-		/** divides two doubles. 0 / 0 = 0! */
-	public static double divide(double n, double d) {
-		if (n == 0)
-			return 0;
-		else if(d==0)
-			return 0;
-		else
-			return n / d;
 	}
 }
