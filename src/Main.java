@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -24,7 +25,7 @@ import lbfgsb.Result;
 
 public class Main {
 
-	//public static PrintWriter pw = null;
+	public static PrintWriter pw = null;
 	
 	public static int tagSize = 13;
 	public static ArrayList<String> sentences = new ArrayList<>();
@@ -52,12 +53,12 @@ public class Main {
 		
 		// Time operations. Just using for information.
 		long startTime = System.nanoTime();
-//		try {
-//			//pw = new PrintWriter(new File("outp.txt"));
-//		} catch (FileNotFoundException e1) {
-//			// TODO Auto-generated catch block
-//			e1.printStackTrace();
-//		}
+		try {
+			pw = new PrintWriter(new File("outp.txt"));
+		} catch (FileNotFoundException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
 		
 		//try (BufferedReader br = new BufferedReader(new FileReader("PennCorpus12.txt"))) {
 		try (BufferedReader br = new BufferedReader(new FileReader("input.txt"))) {
@@ -141,22 +142,43 @@ public class Main {
 		
 		/* LBFGS-B part */
 		Minimizer alg = new Minimizer();
-        alg.getStopConditions().setMaxIterations(10);
+        alg.getStopConditions().setMaxIterations(10000);
         alg.setDebugLevel(1);
         
 		Result ret;
 		try {
+			double dSum = 0;
+			for(double d : tagFeatureWeights) {
+				dSum += d;
+			}
+			System.out.println("First: " + dSum);
+			pw.println("First " + dSum);
 			ret = alg.run(new Function(), tagFeatureWeights);
 			
 			double finalValue = ret.functionValue;
 	        double [] finalGradient = ret.gradient;
 	        
-	        System.out.println("Final Value: " + finalValue*(-1));
+	        System.out.println("Final Value: " + finalValue);
+	        Main.pw.println("Final Value: " + finalValue);
 	        System.out.println("Gradients:");
 	        printDoubleArray(finalGradient);
+	        double dSum2 = 0;
+			for(double d : finalGradient) {
+				dSum2 += d;
+			}
+			System.out.println("Last: " + dSum2);
+			pw.println("Last: " + dSum2);
 	        
 	        updateProbabilities(finalGradient);
 	        tagFeatureWeights = finalGradient;
+	        
+			for(String s : Main.transitionProbabilities.keySet()) {
+				Main.pw.println(s + " " + Main.transitionProbabilities.get(s)); 
+			}
+			
+			for(String s : Main.emissionProbabilities.keySet()) {
+				Main.pw.println(s + " " + Main.emissionProbabilities.get(s)); 
+			}
 	        
 		} catch (LBFGSBException e) {
 			e.printStackTrace();
@@ -178,7 +200,7 @@ public class Main {
 		long endTime = System.nanoTime();
 		long duration = (endTime - startTime);  //divide by 1000000 to get milliseconds.
 		System.out.println("\nRunning time: " + duration + " nanoseconds ~ " + duration/1000000 + " milliseconds");
-		//pw.close();
+		pw.close();
 	}
 	
 	protected static void printDoubleArray(double[] array) {
@@ -208,7 +230,8 @@ public class Main {
 	}
 	
 	private static void fillTransitionMap(){
-		double value = 1.0 / (tagSize*tagSize);	// For uniform values
+		
+		double value = 1.0 / (tagSize);	// For uniform values
 		
 		//double value = 0.0;	// For zero values
 		
@@ -222,7 +245,7 @@ public class Main {
 	private static void fillEmissionMap(String sentence){
 		String[] word = sentence.split(" ");
 		words= new ArrayList<String>(Arrays.asList(word));
-		double value = 1.0 / (allWords.size());	// For uniform values
+		double value = 1.0 / (allWords.size() * tagSize);	// For uniform values
 		//double value = 0.0;	// For zero values
 		
 		for(int i = 0; i < tagSize; i++){
@@ -274,7 +297,7 @@ public class Main {
 			for(int i = 0; i < N+1; i++){
 				Node n = new Node(i, words[i]);
 				
-				if((i+1) < N){
+				if((i+1) <= N){
 					n.next.add(i+1);
 				}
 				if((i-1) >= 0){
@@ -561,20 +584,20 @@ public class Main {
 		if(isStartState) {
 			for(int i = 0; i < size; i++){
 				if(i == size-1) {
-					list.add(1.0);
+					list.add((1.0));
 				}
 				else {
-					list.add(0.0);
+					list.add((0.0));
 				}
 			}
 		}
 		else {
 			for(int i = 0; i < size; i++){
 				if(i == size-1) {
-					list.add(0.0);
+					list.add((0.0));
 				}
 				else {
-					list.add(initialValue/(size-1));
+					list.add((initialValue/(size-1)));
 				}
 			}
 		}
@@ -582,17 +605,6 @@ public class Main {
 		
 		return list;
 	}
-	
-//	// For creating list values with zeros
-//	private static ArrayList<Double> createZeroList(int size){
-//		ArrayList<Double> list = new ArrayList<>();
-//		
-//		for(int i = 0; i < size; i++){
-//			list.add(0.0);
-//		}
-//		
-//		return list;
-//	}
 	
 	// Iteration from start to end. Using for alpha values.
 	public static void iterateFromStartToEnd(HashMap<Integer, Node> latticeMap){
@@ -641,6 +653,37 @@ public class Main {
 				}
 				n.alpha.add(i, finalResult);
 			}
+			n.alpha.add(tagSize-1, (0.0));
+			
+			return n.alpha;
+		}
+		else{
+			for(int i = 0; i < tagSize-1; i++){
+				double finalResult = 0;
+				for(int counter : neighbors){
+					Node n2 = latticeMap.get(counter);
+					finalResult += calculate(n, n2, i, decide);
+					
+				}
+				n.beta.add(i, finalResult);
+			}
+			n.beta.add(tagSize-1, (0.0));
+			
+			return n.beta;
+		}
+	}
+	
+	public static ArrayList<Double> calculateValue2(List<Integer> neighbors, Node n, HashMap<Integer, Node> latticeMap, String decide){
+		if(decide.equals("alpha")){
+			for(int i = 0; i < tagSize-1; i++){
+				double finalResult = 0;
+				for(int counter : neighbors){
+					Node n2 = latticeMap.get(counter);
+					finalResult += Math.exp(calculate(n, n2, i, decide));
+					
+				}
+				n.alpha.add(i, finalResult);
+			}
 			n.alpha.add(tagSize-1, 0.0);
 			
 			return n.alpha;
@@ -669,11 +712,33 @@ public class Main {
 			if(decide.equals("alpha"))
 				sum += (n2.alpha.get(j)) * (transitionProbabilities.get(tagList.get(tagNumber) + "-" + tagList.get(j)));
 			else {
+				//System.out.println(tagList.get(tagNumber) + "-" + tagList.get(j));
 				sum += (n2.beta.get(j)) * (transitionProbabilities.get(tagList.get(tagNumber) + "-" + tagList.get(j)));
 			}
 		}
 
-		return sum*emissionProbabilities.get(tagList.get(tagNumber) + "-" + n.word);
+		return Math.exp(sum* emissionProbabilities.get(tagList.get(tagNumber) + "-" + n.word));
+	}
+	
+	private static double calculate2(Node n, Node n2, int tagNumber, String decide){
+		double sum = 0;
+		ArrayList<Double> list = new ArrayList<>();
+		for (int j = 0; j < tagSize; j++) {
+			
+			if(decide.equals("alpha")) {
+				sum += Math.log(n2.alpha.get(j)) * (transitionProbabilities.get(tagList.get(tagNumber) + "-" + tagList.get(j)) * emissionProbabilities.get(tagList.get(tagNumber) + "-" + n.word));
+				list.add(Math.log(n2.alpha.get(j)) * (transitionProbabilities.get(tagList.get(tagNumber) + "-" + tagList.get(j)) * emissionProbabilities.get(tagList.get(tagNumber) + "-" + n.word)));
+			}
+			else {
+				//System.out.println(tagList.get(tagNumber) + "-" + tagList.get(j));
+				sum += Math.log(n2.beta.get(j)) * (transitionProbabilities.get(tagList.get(tagNumber) + "-" + tagList.get(j)) * emissionProbabilities.get(tagList.get(tagNumber) + "-" + n.word));
+				list.add(Math.log(n2.beta.get(j)) * (transitionProbabilities.get(tagList.get(tagNumber) + "-" + tagList.get(j)) * emissionProbabilities.get(tagList.get(tagNumber) + "-" + n.word)));
+			}
+		}
+		
+		double max = Collections.max(list);
+
+		return Math.exp(Math.log(Math.exp(sum-max)) + max);
 	}
 	
 	
@@ -682,7 +747,7 @@ public class Main {
 		ArrayList<Double> scores = new ArrayList<>();
 		
 		for(int i = 0; i < tagSize; i++){
-			double score = alpha.get(i) * beta.get(i);
+			double score = (Math.log(alpha.get(i)) * (beta.get(i)));
 			
 			scores.add(i, score);
 		}
