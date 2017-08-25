@@ -28,13 +28,14 @@ public class viterbi {
 
 	public static void main(String[] args) throws IOException {
 
-		transitions = new HashMap<String, Node>();
+			transitions = new HashMap<String, Node>();
 		emissions = new HashMap<String, Node>();
 		statess = new ArrayList<String>();
 		wordsAll = new HashSet<String>();
 		long start = 0;
 		long elapsedTime = 0;
 
+		/* Transition ve emission değerlerini opkuyup transition-emissions-states  ve wordsAll dosyalarını dolduruyor */
 		System.out.println("=== Building The Model");
 		start = System.nanoTime();
 		buildModel(args[0]);
@@ -45,6 +46,10 @@ public class viterbi {
 
 		states = statess.size();
 
+		
+		/* Dosya okuma işleminin sonu */
+		
+		/* Taglenmemiş dosyayı args[1] olarak alıp args[2] isimli dosyay yazıyor  */
 		System.out.println("=== Tagging the text");
 		start = System.nanoTime();
 		tagging(args[1],args[2]);
