@@ -28,17 +28,16 @@ public class viterbi {
 
 	public static void main(String[] args) throws IOException {
 
-			transitions = new HashMap<String, Node>();
+		transitions = new HashMap<String, Node>();
 		emissions = new HashMap<String, Node>();
 		statess = new ArrayList<String>();
 		wordsAll = new HashSet<String>();
 		long start = 0;
 		long elapsedTime = 0;
 
-		/* Transition ve emission değerlerini opkuyup transition-emissions-states  ve wordsAll dosyalarını dolduruyor */
 		System.out.println("=== Building The Model");
 		start = System.nanoTime();
-		buildModel(args[0]);
+		buildModel();
 		elapsedTime = System.nanoTime() - start;
 		System.out.println("=== Building The Model Completed");
 		System.out.println("Total time: " + elapsedTime);
@@ -46,13 +45,9 @@ public class viterbi {
 
 		states = statess.size();
 
-		
-		/* Dosya okuma işleminin sonu */
-		
-		/* Taglenmemiş dosyayı args[1] olarak alıp args[2] isimli dosyay yazıyor  */
 		System.out.println("=== Tagging the text");
 		start = System.nanoTime();
-		tagging(args[1],args[2]);
+		tagging("test_set.txt","denemeOut.txt");
 		elapsedTime = System.nanoTime() - start;
 		System.out.println("=== Tagging Completed");
 		System.out.println("Total time: " + elapsedTime);
@@ -67,15 +62,15 @@ public class viterbi {
 			HashMap<String, Double> tmp2 = tmp.vals;
 			Iterator it2 = tmp2.entrySet().iterator();
 			int countwr = tmp2.size();
-			int newcount = tmp.count + countwr + 1;
+			double newcount = tmp.val + countwr + 1;
 
 			while (it2.hasNext()) {
 				Map.Entry pair2 = (Map.Entry) it2.next();
-				tmp2.replace((String) pair2.getKey(), ((double) pair2.getValue() * tmp.count) / newcount);
+				tmp2.replace((String) pair2.getKey(), ((double) pair2.getValue() * tmp.val) / newcount);
 			}
 			tmp2.put(word, (1.0 / newcount));
 			wordsAll.add(word);
-			tmp.count = newcount;
+			tmp.val = newcount;
 		}
 		// System.out.println("\"" + word + "\" has been smoothed");
 		smoothed++;
@@ -95,31 +90,24 @@ public class viterbi {
 			output = new BufferedWriter(new FileWriter(file));
 
 			String sentence = br.readLine();
-			ArrayList<String> words = new ArrayList<String>();
-			words.clear();
+
 			while (sentence != null) {
+						String[] words=sentence.toLowerCase().split("\\s+");
+						viterbi = new double[states][words.length];
+						vitPrev = new int[states][words.length];
 
-					
+						for (int i = 0; i < words.length; i++) {
 
-					if (!sentence.equals("###/###") && sentence.trim().length()>0) {
-						words.add(sentence);
-						String[] dizi=sentence.split(" ");
-						words.addAll( Arrays.asList(dizi));
-					} else {
-						System.out.println(words);
-						//System.out.println(words.size());
-						viterbi = new double[states][words.size()];
-						vitPrev = new int[states][words.size()];
-
-						for (int i = 0; i < words.size(); i++) {
-
-							String word = words.get(i);
+							String word = words[i];
 							if (!wordsAll.contains(word)) {
+//								System.out.println(word+" smoothed");
 								leplaceSmoothing(word);
 							}
 
 							for (int j = 0; j < statess.size(); j++) {
+//								System.out.println(statess.get(j)+" "+word);
 								double score = vitScore(statess.get(j), word, i, j);
+//								System.out.println(statess.get(j)+" "+word+" "+score);
 								viterbi[j][i] = score;
 							}
 
@@ -128,7 +116,7 @@ public class viterbi {
 						String tag = "";
 						int idx = 0;
 						double max = 0;
-						int n = words.size() - 1;
+						int n = words.length - 1;
 						for (int i = 0; i < states; i++) {
 							if (viterbi[i][n] > max) {
 								max = viterbi[i][n];
@@ -138,20 +126,20 @@ public class viterbi {
 						for (int i = n; i >= 0; i--) {
 
 							String cek = statess.get(idx);
-							String truetag = getTag(words.get(i));
+							String truetag = getTag(words[i]);
 							countWord++;
 							if (cek.equals(truetag)) {
 								correctTag++;
 							}
 
-							tag = words.get(i) + "/" + cek + " " + tag;
+							tag = words[i] + "/" + cek + " " + tag;
 							idx = vitPrev[idx][i];
 
 						}
 						output.write(tag + "\n");
-						words.clear();
+//						words.clear();
 						cs++;	
-					}
+					
 
 					sentence = br.readLine();
 				
@@ -178,12 +166,13 @@ public class viterbi {
 		if (emtag != null) {
 			if (emtag.vals.containsKey(word)) {
 				emProb = emtag.vals.get(word);
+//				System.out.println(word+" "+tag+" "+emtag.vals.get(word));
 			}
 		}
 
 		if (idxWord == 0) {
 			double transProb = 0.0;
-			Node trans = transitions.get("start");
+			Node trans = transitions.get("<s>");
 			if (trans.vals.containsKey(tag)) {
 				transProb = trans.vals.get(tag);
 			}
@@ -213,97 +202,72 @@ public class viterbi {
 		return max;
 	}
 
-	private static void buildModel(String file) throws IOException {
+	private static void buildModel() throws IOException {
 
-		
-
-		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF8"));
-		String tagPrev = "start";
+		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("out.txt"), "UTF8"));
+		String tagPrev = "";
 		String tag = "";
 		String word = "";
 		try {
-			StringBuilder sb = new StringBuilder();
 			String line = br.readLine();
-
+			int i=1;
 			while (line != null) {
-				if (line.length() > 0) {
-					String[] words = line.split("/");
-					// System.out.println(sentence+" "+words.length+"
-					// "+words[1]+" "+words[4]);
-					tag = words[2];
-					word = words[1];
-
-					addTag(tagPrev, tag);
-					addWord(tag, word);
-					tagPrev = tag;
-
-					// line = bf.readLine();
-				} else {
-					tagPrev = "start";
+				if (i<170){
+					String[] words = line.split(" ");
+					tag = words[0].split("\\|")[1];
+					tagPrev = words[0].split("\\|")[0];
+					addTag(tagPrev, tag,Double.parseDouble(words[1]));
+						
+						
 				}
-				//System.out.println(tagPrev + " " + tag + " " + word);
+				else{
+					String[] words = line.split(" ");
+					tag = words[0].split("\\|")[0];
+					word = words[0].split("\\|")[1];
+					addWord(tag, word,Double.parseDouble(words[1]));
+					wordsAll.add(word);						
+					}
+					
+				i++;
 				line = br.readLine();
 			}
 
 		} finally {
 			br.close();
 		}
-
-		// System.out.println("Total sentences:
-		// "+count);System.out.println("Total word:
-		// "+count_word);System.out.println("Unique tag:
-		// "+statess.size());System.out.println("Unique word:
-		// "+wordsAll.size());
-
-		PrintWriter wr = new PrintWriter("transition.txt");
-		Iterator it = transitions.entrySet().iterator();
-		while (it.hasNext())
-
-		{
-			Map.Entry pair = (Map.Entry) it.next();
-			Node tmp = (Node) pair.getValue();
-			wr.println(tmp.name + " " + tmp.count);
-			wr.println(tmp.countProbability());
-		}
-		wr.close();
-		System.out.println("Transistion probability ready");
-
-		wr = new PrintWriter("emissions.txt");
-		it = emissions.entrySet().iterator();
-		while (it.hasNext())
-
-		{
-			Map.Entry pair = (Map.Entry) it.next();
-			Node tmp = (Node) pair.getValue();
-			wr.println(tmp.name + " " + tmp.count);
-			wr.println(tmp.countProbability());
-		}
-		wr.close();
-		System.out.println("Emission probability ready");
+//		System.out.println(wordsAll.size());
+		
+//		for(String a:transitions.keySet()){
+//			System.out.println(a+" "+transitions.get(a).name);
+//			HashMap<String, Double> vals=transitions.get(a).vals;
+//			for(String b:vals.keySet()){
+//				System.out.println(b+" "+vals.get(b));
+//			}
+//		}
 
 	}
 
-	private static void addTag(String prev, String tag) {
+	private static void addTag(String prev, String tag,Double value) {
 		if (transitions.containsKey(prev)) {
 			Node check = transitions.get(prev);
-			check.addVal(tag);
+			check.addVal(tag,value);
 		} else {
-			Node check = new Node(prev, tag);
+			Node check = new Node(prev, tag,value);
 			transitions.put(prev, check);
 			statess.add(prev);
 		}
 	}
 
-	private static void addWord(String tag, String word) {
-		word = word.replaceAll("\t", "");
+	private static void addWord(String tag, String word,Double value) {
+//		word = word.replaceAll("\t", "");
 		if (!wordsAll.contains(word)) {
 			wordsAll.add(word);
 		}
 		if (emissions.containsKey(tag)) {
 			Node check = emissions.get(tag);
-			check.addVal(word);
+			check.addVal(word,value);
 		} else {
-			Node check = new Node(tag, word);
+			Node check = new Node(tag, word,value);
 			emissions.put(tag, check);
 		}
 	}
@@ -323,34 +287,25 @@ class Node {
 
 	String name;
 	HashMap<String, Double> vals;
-	int count;
+	double val;
 
-	public Node(String name, String firstVal) {
+	public Node(String name, String firstVal,double vall) {
 		this.name = name;
-		this.count = 0;
+		this.val = vall;
 		vals = new HashMap<String, Double>();
-		addVal(firstVal);
+		addVal(firstVal,vall);
 	}
 
-	public void addVal(String val) {
-		if (vals.containsKey(val)) {
-			double curr = vals.get(val) + 1;
-			vals.replace(val, curr);
-		} else {
-			vals.put(val, 1.0);
-		}
-		count++;
+	public void addVal(String val,double vall) {
+//		System.out.println(val+" "+vall);
+//		if (vals.containsKey(val)) {
+//			double curr = vals.get(val) +vall;
+//			vals.replace(val, curr);
+//		} else {
+			vals.put(val, vall);
+//			System.out.println(val+" "+vall);
+//		}
+		
 	}
 
-	public String countProbability() {
-		Iterator it = vals.entrySet().iterator();
-		String result = "";
-		while (it.hasNext()) {
-			Map.Entry pair = (Map.Entry) it.next();
-			double curr = (double) pair.getValue();
-			vals.replace((String) pair.getKey(), (curr / count));
-			result += "	" + pair.getKey() + " = " + pair.getValue() + "\n";
-		}
-		return result;
-	}
 }
