@@ -1,4 +1,4 @@
-package deneme;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -16,8 +16,8 @@ import java.util.Map;
 
 public class viterbi {
 
-	private static HashMap<String, Node> transitions;
-	private static HashMap<String, Node> emissions;
+	private static HashMap<String, NodeV> transitions;
+	private static HashMap<String, NodeV> emissions;
 	private static ArrayList<String> statess;
 	private static HashSet<String> wordsAll;
 
@@ -28,8 +28,8 @@ public class viterbi {
 
 	public static void main(String[] args) throws IOException {
 
-		transitions = new HashMap<String, Node>();
-		emissions = new HashMap<String, Node>();
+		transitions = new HashMap<String, NodeV>();
+		emissions = new HashMap<String, NodeV>();
 		statess = new ArrayList<String>();
 		wordsAll = new HashSet<String>();
 		long start = 0;
@@ -47,7 +47,7 @@ public class viterbi {
 
 		System.out.println("=== Tagging the text");
 		start = System.nanoTime();
-		tagging("test_set.txt","denemeOut.txt");
+		tagging("PennCorpus12.txt","denemeOut.txt");
 		elapsedTime = System.nanoTime() - start;
 		System.out.println("=== Tagging Completed");
 		System.out.println("Total time: " + elapsedTime);
@@ -57,7 +57,7 @@ public class viterbi {
 		Iterator it = emissions.entrySet().iterator();
 		while (it.hasNext()) {
 			Map.Entry pair = (Map.Entry) it.next();
-			Node tmp = (Node) pair.getValue();
+			NodeV tmp = (NodeV) pair.getValue();
 
 			HashMap<String, Double> tmp2 = tmp.vals;
 			Iterator it2 = tmp2.entrySet().iterator();
@@ -92,6 +92,7 @@ public class viterbi {
 			String sentence = br.readLine();
 
 			while (sentence != null) {
+				sentence="<s> "+sentence;
 						String[] words=sentence.toLowerCase().split("\\s+");
 						viterbi = new double[states][words.length];
 						vitPrev = new int[states][words.length];
@@ -123,16 +124,17 @@ public class viterbi {
 								idx = i;
 							}
 						}
-						for (int i = n; i >= 0; i--) {
+						for (int i = n; i >= 1; i--) {
 
 							String cek = statess.get(idx);
-							String truetag = getTag(words[i]);
+//							String truetag = getTag(words[i]);
 							countWord++;
-							if (cek.equals(truetag)) {
-								correctTag++;
-							}
+//							if (cek.equals(truetag)) {
+//								correctTag++;
+//							}
 
 							tag = words[i] + "/" + cek + " " + tag;
+							
 							idx = vitPrev[idx][i];
 
 						}
@@ -154,15 +156,15 @@ public class viterbi {
 		System.out.println("Total evaluate sentence: " + cs);
 		System.out.println("Total smoothed words: " + smoothed);
 		System.out.println("Total evaluate words: " + countWord);
-		System.out.println("Total correct tag: " + correctTag);
-		System.out.println("Correctness persentage: " + (((double) correctTag / countWord) * 100) + "%");
+//		System.out.println("Total correct tag: " + correctTag);
+//		System.out.println("Correctness persentage: " + (((double) correctTag / countWord) * 100) + "%");
 
 	}
 
 	private static double vitScore(String tag, String word, int idxWord, int idxTag) {
 		double max = 0.0;
 		double emProb = 0.0;
-		Node emtag = emissions.get(tag);
+		NodeV emtag = emissions.get(tag);
 		if (emtag != null) {
 			if (emtag.vals.containsKey(word)) {
 				emProb = emtag.vals.get(word);
@@ -172,7 +174,7 @@ public class viterbi {
 
 		if (idxWord == 0) {
 			double transProb = 0.0;
-			Node trans = transitions.get("<s>");
+			NodeV trans = transitions.get("<s>");
 			if (trans.vals.containsKey(tag)) {
 				transProb = trans.vals.get(tag);
 			}
@@ -185,7 +187,7 @@ public class viterbi {
 				double prevVitS = viterbi[i][idxWord - 1];
 				double transProb = 0.0;
 
-				Node trans = transitions.get(prevTag);
+				NodeV trans = transitions.get(prevTag);
 				if (trans != null) {
 					if (trans.vals.containsKey(tag)) {
 						transProb = trans.vals.get(tag);
@@ -249,10 +251,10 @@ public class viterbi {
 
 	private static void addTag(String prev, String tag,Double value) {
 		if (transitions.containsKey(prev)) {
-			Node check = transitions.get(prev);
+			NodeV check = transitions.get(prev);
 			check.addVal(tag,value);
 		} else {
-			Node check = new Node(prev, tag,value);
+			NodeV check = new NodeV(prev, tag,value);
 			transitions.put(prev, check);
 			statess.add(prev);
 		}
@@ -264,10 +266,10 @@ public class viterbi {
 			wordsAll.add(word);
 		}
 		if (emissions.containsKey(tag)) {
-			Node check = emissions.get(tag);
+			NodeV check = emissions.get(tag);
 			check.addVal(word,value);
 		} else {
-			Node check = new Node(tag, word,value);
+			NodeV check = new NodeV(tag, word,value);
 			emissions.put(tag, check);
 		}
 	}
@@ -283,13 +285,13 @@ public class viterbi {
 	}
 }
 
-class Node {
+class NodeV {
 
 	String name;
 	HashMap<String, Double> vals;
 	double val;
 
-	public Node(String name, String firstVal,double vall) {
+	public NodeV(String name, String firstVal,double vall) {
 		this.name = name;
 		this.val = vall;
 		vals = new HashMap<String, Double>();
