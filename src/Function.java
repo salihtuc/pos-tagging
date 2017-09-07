@@ -95,6 +95,8 @@ public class Function implements DifferentiableFunction {
 
 	public double[] gradient(double[] iterWeights) {
 
+		double totalTransition = 0;
+		double totalEmission = 0;
 		double[] grad = new double[iterWeights.length];
 		
 		HashMap<String, Double> gradtransitionProbabilities = new HashMap<>();
@@ -161,6 +163,7 @@ public class Function implements DifferentiableFunction {
 				else {
 					gradtransitionProbabilities.put(key,
 							(orgScore - negScore));
+					totalTransition += orgScore - negScore;
 				}
 				
 				
@@ -246,10 +249,14 @@ public class Function implements DifferentiableFunction {
 				if(key.startsWith("<s>") && key.endsWith("<s>")) {
 					grademissionProbabilities.put(key,
 							1.0);
+					
+					totalEmission += 1.0;
 				}
 				else if(!key.startsWith("<s>") && !key.endsWith("<s>")) {
 					grademissionProbabilities.put(key,
 							firstVal - secondVal);
+					
+					totalEmission += firstVal - secondVal;
 				}
 				else {
 					grademissionProbabilities.put(key, 0.0);
@@ -261,7 +268,15 @@ public class Function implements DifferentiableFunction {
 		}
 		
 		passedList.clear();
-		grad = Main.createWeightsArray2(gradtransitionProbabilities, grademissionProbabilities, passedList);
+		for(String s : gradtransitionProbabilities.keySet()) {
+			double d = gradtransitionProbabilities.get(s);
+			gradtransitionProbabilities.put(s, divide(d, totalTransition));
+		}
+		for(String s : grademissionProbabilities.keySet()) {
+			double d = grademissionProbabilities.get(s);
+			grademissionProbabilities.put(s, divide(d, totalEmission));
+		}
+		grad = Main.createWeightsArray(gradtransitionProbabilities, grademissionProbabilities);
 		
 //		System.out.println("The list: " + Main.featureList);
 //		System.out.println("The Map: " + gradtransitionProbabilities.keySet());
@@ -299,7 +314,7 @@ public class Function implements DifferentiableFunction {
 		}
 //		
 //		System.out.println("Length: " + grad.length);
-		Main.updateProbabilities2(grad, passedList);
+		Main.updateProbabilities(grad);
 		Main.pw.println("***********************************************NEW ITERATION*********************************************");
 		Main.pw.println("Pre Total: " + dSumPre);
 		System.out.println("Pre Total: " + dSumPre);
