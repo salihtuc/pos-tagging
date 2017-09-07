@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Random;
 
 import lbfgsb.LBFGSBException;
 //import lbfgsb.Minimizer;
@@ -56,7 +57,6 @@ public class Main {
 		try {
 			pw = new PrintWriter(new File("outp.txt"));
 		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
 		
@@ -66,9 +66,12 @@ public class Main {
 			String line;
 
 			while ((line = br.readLine()) != null) {
-				sentences.add(start + line.toLowerCase());
 				
-				allWords.addAll(Arrays.asList((start + line.toLowerCase()).split(" ")));
+				if(line.split(" ").length > 2) {
+					sentences.add(start + line.toLowerCase());
+					
+					allWords.addAll(Arrays.asList((start + line.toLowerCase()).split(" ")));
+				}
 				
 			}
 
@@ -108,16 +111,16 @@ public class Main {
 			globalMap.put(0, latticeMap);
 			
 			HashMap<Integer, Node> latticeMap1 = new HashMap<>();	// Negative sample 1 (DEL1WORD)
-			fillLattice(sentence.split(" "), latticeMap1, 1);
-			globalMap.put(1, latticeMap1);
+//			fillLattice(sentence.split(" "), latticeMap1, 1);
+//			globalMap.put(1, latticeMap1);
 			
 			HashMap<Integer, Node> latticeMap2 = new HashMap<>();	// Negative sample 2 (TRANS)
 			fillLattice(sentence.split(" "), latticeMap2, 2);
-			globalMap.put(2, latticeMap2);
+			globalMap.put(1, latticeMap2);
 			
-			HashMap<Integer, Node> latticeMap3 = new HashMap<>();	// Negative sample 3 (DEL1SUBSEQ)
-			fillLattice(sentence.split(" "), latticeMap3, 3);
-			globalMap.put(3, latticeMap3);
+//			HashMap<Integer, Node> latticeMap3 = new HashMap<>();	// Negative sample 3 (DEL1SUBSEQ)
+//			fillLattice(sentence.split(" "), latticeMap3, 3);
+//			globalMap.put(3, latticeMap3);
 		
 		
 			sentenceGlobals.add(globalMap);
@@ -153,6 +156,7 @@ public class Main {
 			}
 			System.out.println("First: " + dSum);
 			pw.println("First " + dSum);
+			
 			ret = alg.run(new Function(), tagFeatureWeights);
 			
 			double finalValue = ret.functionValue;
@@ -169,7 +173,7 @@ public class Main {
 			System.out.println("Last: " + dSum2);
 			pw.println("Last: " + dSum2);
 	        
-	        updateProbabilities(finalGradient);
+	        updateProbabilities2(finalGradient, Function.passedList);
 	        tagFeatureWeights = finalGradient;
 	        
 			for(String s : Main.transitionProbabilities.keySet()) {
@@ -231,12 +235,14 @@ public class Main {
 	
 	private static void fillTransitionMap(){
 		
-		double value = 1.0 / (tagSize);	// For uniform values
-		
-		//double value = 0.0;	// For zero values
+//		double value = 1.0 / (tagSize);	// For uniform values
+		Random r = new Random();
+		//double value = 0.1;	// For zero values
 		
 		for(int i = 0; i < (tagSize); i++){
 			for(int j = 0; j < (tagSize); j++){
+				double value = (r.nextInt(100) / 100.0);
+//				System.out.println("val:: " + value);
 				transitionProbabilities.put((tagList.get(i) + "-" + tagList.get(j)), value);
 			}
 		}
@@ -245,11 +251,15 @@ public class Main {
 	private static void fillEmissionMap(String sentence){
 		String[] word = sentence.split(" ");
 		words= new ArrayList<String>(Arrays.asList(word));
-		double value = 1.0 / (allWords.size() * tagSize);	// For uniform values
-		//double value = 0.0;	// For zero values
+		//double value = 1.0 / (allWords.size());	// For uniform values
+//		double value = 0.1;	// For zero values
+		Random r = new Random();
+		
 		
 		for(int i = 0; i < tagSize; i++){
 			for(String wordd : words){
+				double value = (r.nextInt(100) / 100.0);
+//				System.out.println("valEm:: " + value);
 				if(!emissionProbabilities.containsKey(tagList.get(i) + "-" + wordd))
 					emissionProbabilities.put(tagList.get(i) + "-" + wordd, value);
 			}
@@ -290,273 +300,313 @@ public class Main {
 		return weights;
 	}
 	
-	// This function is using for creating lattices.
-	public static void fillLattice(String[] words, HashMap<Integer, Node> lattice, int latticeType){
-		int N = words.length - 1;
-		if(latticeType == 0){	// Original Lattice
-			for(int i = 0; i < N+1; i++){
-				Node n = new Node(i, words[i]);
-				
-				if((i+1) <= N){
-					n.next.add(i+1);
+	protected static double[] createWeightsArray2(HashMap<String, Double> transitionMap, HashMap<String, Double> emissionMap, ArrayList<Integer> passedValues) {
+		int size = transitionMap.size() + emissionMap.size();
+		
+		double[] weights = new double[size];
+		
+		int i = 0;
+		
+		for(String s : transitionMap.keySet()) {
+			if(s.endsWith("<s>")) {
+				passedValues.add(i);
+			}
+			else {
+				weights[i] = transitionMap.get(s);
+			}
+			i++;
+		}
+		for(String s : emissionMap.keySet()) {
+			if(s.endsWith("<s>") || s.startsWith("<s>")) { // tag || word
+				if(s.endsWith("<s>") && s.startsWith("<s>")) {
+					weights[i] = 1.0;
 				}
-				if((i-1) >= 0){
-					n.prev.add(i-1);
+				else {
+					passedValues.add(i);
 				}
-				
-				if(i == N) {
-					n.isEndState = true;
-				}
-				lattice.put(i, n);
 				
 			}
+			else {
+				weights[i] = emissionMap.get(s);
+			}
+			i++;
 		}
-		else if(latticeType == 1){	// Negative Lattice 1 : Del1Word
-			for(int i = 0; i < N+1; i++){
-				if((i+N - 1) <= N){
+//		for(double d : transitionMap.values()) {
+//			weights[i] = d;
+//			i++;
+//		}
+//		
+//		for(double d : emissionMap.values()) {
+//			weights[i] = d;
+//			i++;
+//		}
+		
+		return weights;
+	}
+	
+	// This function is using for creating lattices.
+	static int sentenceCount = 0;
+	public static void fillLattice(String[] words, HashMap<Integer, Node> lattice, int latticeType) {
+		int N = words.length - 1;
+		//if (N > 2) {
+			sentenceCount++;
+			if (latticeType == 0) { // Original Lattice
+				for (int i = 0; i < N + 1; i++) {
 					Node n = new Node(i, words[i]);
-					
-					n.next.add(i+1);
-					n.next.add(i+N+1);
-					
-					if(i != 0){
-						n.prev.add(i-1);
+
+					if ((i + 1) <= N) {
+						n.next.add(i + 1);
 					}
-					
-					if(i == N || i == N-1) {
+					if ((i - 1) >= 0) {
+						n.prev.add(i - 1);
+					}
+
+					if (i == N) {
 						n.isEndState = true;
 					}
-					
 					lattice.put(i, n);
+
 				}
-				else{
-					Node n1 = new Node(i, words[i]);
-					Node n2 = new Node(i+N-1, words[i]);
-					
-					n1.prev.add(i-1);
-					
-					if(i+1 <= N){
-						n1.next.add(i+1);
+			} else if (latticeType == 1) { // Negative Lattice 1 : Del1Word
+				for (int i = 0; i < N + 1; i++) {
+					if ((i + N - 1) <= N) {
+						Node n = new Node(i, words[i]);
+
+						n.next.add(i + 1);
+						n.next.add(i + N + 1);
+
+						if (i != 0) {
+							n.prev.add(i - 1);
+						}
+
+						if (i == N || i == N - 1) {
+							n.isEndState = true;
+						}
+
+						lattice.put(i, n);
+					} else {
+						Node n1 = new Node(i, words[i]);
+						Node n2 = new Node(i + N - 1, words[i]);
+
+						n1.prev.add(i - 1);
+
+						if (i + 1 <= N) {
+							n1.next.add(i + 1);
+						}
+						if (i + N + 1 < 2 * N) {
+							n1.next.add(i + N + 1);
+						}
+
+						if (i == N) {
+							n1.isEndState = true;
+							n2.isEndState = true;
+						} else if (i == N - 1) {
+							n2.isEndState = true;
+						}
+
+						int j = i + N - 1;
+
+						if (j - 1 == N) {
+							n2.prev.add(j - N - 1);
+						} else {
+							n2.prev.add(j - 1);
+							n2.prev.add(j - N - 1);
+						}
+
+						if (j + 1 < 2 * N) {
+							n2.next.add(j + 1);
+						}
+
+						lattice.put(i, n1);
+						lattice.put(j, n2);
 					}
-					if(i+N+1 < 2*N){
-						n1.next.add(i+N+1);
-					}
-					
-					if(i == N) {
+				}
+			} else if (latticeType == 2) { // Negative Lattice 2: Trans1
+				for (int i = 0; i < N + 1; i++) {
+					if (i == 0) {
+						Node n = new Node(i, words[i]);
+						n.next.add(i + 1);
+						n.next.add(i + N + 1);
+
+						lattice.put(i, n);
+					} else if (i == 1) {
+						int j = 2 * N;
+						Node n1 = new Node(i, words[i]);
+						Node n2 = new Node(j, words[i]);
+
+						n1.next.add(i + 1);
+						n1.next.add(i + N + 1);
+						n1.prev.add(i - 1);
+
+						n2.next.add(j + N - 1);
+						n2.prev.add(j - N + 1);
+
+						lattice.put(i, n1);
+						lattice.put(j, n2);
+
+					} else if (i == 2) {
+						int j = i + N - 1;
+						int k = i + (2 * N) - 1;
+						Node n1 = new Node(i, words[i]);
+						Node n2 = new Node(j, words[i]);
+						Node n3 = new Node(k, words[i]);
+
+						n1.next.add(i + 1);
+						if(N > 3)
+							n1.next.add(i + N + 1);
+						n1.prev.add(i - 1);
+
+						n2.next.add(j + N - 1);
+						n2.prev.add(j - N - 1);
+
+						if(N > 3)
+							n3.next.add(k + N - 1);
+						n3.prev.add(k - N + 1);
+
+						lattice.put(i, n1);
+						lattice.put(j, n2);
+						lattice.put(k, n3);
+					} else if (i == N) {
+						int j = i + N - 1;
+						int k = i + (3 * N) - 4;
+						Node n1 = new Node(i, words[i]);
+						Node n2 = new Node(j, words[i]);
+						Node n3 = new Node(k, words[i]);
+
+						n1.prev.add(i - 1);
+
+						n2.next.add(j + N - 1);
+						n2.prev.add(j - N - 1);
+
+						n3.prev.add(k - N + 1);
+						if(N > 3)
+							n3.prev.add(k - 1);
+
 						n1.isEndState = true;
-						n2.isEndState = true;
-					}
-					else if(i == N-1) {
-						n2.isEndState = true;
-					}
-					
-					int j = i+N-1;
-					
-					if(j-1 == N){
-						n2.prev.add(j-N-1);
-					}
-					else{
-						n2.prev.add(j-1);
-						n2.prev.add(j-N-1);
-					}
-					
-					if(j+1 < 2*N){
-						n2.next.add(j+1);
-					}
-					
-					lattice.put(i, n1);
-					lattice.put(j, n2);
-				}
-			}
-		}
-		else if(latticeType == 2){	// Negative Lattice 2: Trans1
-			for(int i = 0; i < N+1; i++){
-				if (i == 0) {
-					Node n = new Node(i, words[i]);
-					n.next.add(i+1);
-					n.next.add(i+N+1);
-					
-					lattice.put(i, n);
-				} 
-				else if (i == 1) {
-					int j = 2*N;
-					Node n1 = new Node(i, words[i]);
-					Node n2 = new Node(j, words[i]);
-					
-					n1.next.add(i+1);
-					n1.next.add(i+N+1);
-					n1.prev.add(i-1);
-					
-					n2.next.add(j+N-1);
-					n2.prev.add(j-N+1);
-					
-					lattice.put(i, n1);
-					lattice.put(j, n2);
-					
-				} 
-				else if (i == 2) {
-					int j = i+N-1;
-					int k = i+(2*N)-1;
-					Node n1 = new Node(i, words[i]);
-					Node n2 = new Node(j, words[i]);
-					Node n3 = new Node(k, words[i]);
-					
-					n1.next.add(i+1);
-					n1.next.add(i+N+1);
-					n1.prev.add(i-1);
-					
-					n2.next.add(j+N-1);
-					n2.prev.add(j-N-1);
-					
-					n3.next.add(k+N-1);
-					n3.prev.add(k-N+1);
-					
-					lattice.put(i, n1);
-					lattice.put(j, n2);
-					lattice.put(k, n3);
-				} 
-				else if (i == N) {
-					int j = i+N-1;
-					int k = i+(3*N)-4;
-					Node n1 = new Node(i, words[i]);
-					Node n2 = new Node(j, words[i]);
-					Node n3 = new Node(k, words[i]);
-					
-					n1.prev.add(i-1);
-					
-					n2.next.add(j+N-1);
-					n2.prev.add(j-N-1);
-					
-					n3.prev.add(k-N+1);
-					n3.prev.add(k-1);
-					
-					n1.isEndState = true;
-					n3.isEndState = true;
-					
-					lattice.put(i, n1);
-					lattice.put(j, n2);
-					lattice.put(k, n3);
-					
-				} 
-				else {
-					int j = i+N-1;
-					int k = i+(2*N)-1;
-					int m = i+(3*N)-4;
-					Node n1 = new Node(i, words[i]);
-					Node n2 = new Node(j, words[i]);
-					Node n3 = new Node(k, words[i]);
-					Node n4 = new Node(m, words[i]);
-					
-					if(i == N-1){
-						n1.next.add(i+1);
-						n1.prev.add(i-1);
-						
-						n2.next.add(j+N-1);
-						n2.prev.add(j-N-1);
-						
-						n3.prev.add(k-N+1);
 						n3.isEndState = true;
-						
-						n4.next.add(m+1);
-						n4.prev.add(m-N+1);
-						n4.prev.add(m-1);
+
+						lattice.put(i, n1);
+						lattice.put(j, n2);
+						lattice.put(k, n3);
+
+					} else {
+						int j = i + N - 1;
+						int k = i + (2 * N) - 1;
+						int m = i + (3 * N) - 4;
+						Node n1 = new Node(i, words[i]);
+						Node n2 = new Node(j, words[i]);
+						Node n3 = new Node(k, words[i]);
+						Node n4 = new Node(m, words[i]);
+
+						if (i == N - 1) {
+							n1.next.add(i + 1);
+							n1.prev.add(i - 1);
+
+							n2.next.add(j + N - 1);
+							n2.prev.add(j - N - 1);
+
+							n3.prev.add(k - N + 1);
+							n3.isEndState = true;
+
+							n4.next.add(m + 1);
+							n4.prev.add(m - N + 1);
+							n4.prev.add(m - 1);
+						} else {
+							n1.next.add(i + 1);
+							n1.next.add(i + N + 1);
+							n1.prev.add(i - 1);
+
+							n2.next.add(j + N - 1);
+							n2.prev.add(j - N - 1);
+
+							n3.next.add(k + N - 1);
+							n3.prev.add(k - N + 1);
+
+							n4.next.add(m + 1);
+							n4.prev.add(m - N + 1);
+
+							// Look at it!!!
+							n4.prev.add(m - 1);
+						}
+
+						lattice.put(i, n1);
+						lattice.put(j, n2);
+						lattice.put(k, n3);
+						lattice.put(m, n4);
 					}
-					else{
+				}
+			} else if (latticeType == 3) {
+				for (int i = 0; i < N + 1; i++) {
+					if (i == 0 || i == 1) {
+						Node n1 = new Node(i, words[i]);
+
+						if (i == 1) {
+							n1.prev.add(i - 1);
+							n1.isEndState = true;
+						}
 						n1.next.add(i+1);
-						n1.next.add(i+N+1);
-						n1.prev.add(i-1);
+						for (int j = i + N + 1; j < (2 * N); j++) {
+							n1.next.add(j);
+						}
+
+						lattice.put(i, n1);
+					} else if (i == N || i == N - 1) {
+						int j = i + N - 1;
+
+						Node n1 = new Node(i, words[i]);
+						Node n2 = new Node(j, words[i]);
+
+						if (i == N - 1) {
+							n1.next.add(i + 1);
+							n2.next.add(j + 1);
+							n1.isEndState = true;
+						}
+
+						if (i == N) {
+							n1.isEndState = true;
+							n2.isEndState = true;
+						}
+
+						n1.prev.add(i - 1);
 						
-						n2.next.add(j+N-1);
-						n2.prev.add(j-N-1);
-						
-						n3.next.add(k+N-1);
-						n3.prev.add(k-N+1);
-						
-						n4.next.add(m+1);
-						n4.prev.add(m-N+1);
-						
-						// Look at it!!!
-						n4.prev.add(m-1);
+						if(N > 3)
+						n2.prev.add(j - 1);
+
+						for (int k = 0; k < (j - N); k++) {
+							n2.prev.add(k);
+						}
+
+						lattice.put(i, n1);
+						lattice.put(j, n2);
+					} else {
+						int j = i + N - 1;
+
+						Node n1 = new Node(i, words[i]);
+						Node n2 = new Node(j, words[i]);
+
+						n1.next.add(i + 1);
+						n2.next.add(j + 1);
+
+						n1.isEndState = true;
+
+						n1.prev.add(i - 1);
+						if (j - 1 != N)
+							n2.prev.add(j - 1);
+
+						for (int m = i + N + 1; m < (2 * N); m++) {
+							n1.next.add(m);
+						}
+
+						for (int k = 0; k < (j - N); k++) {
+							n2.prev.add(k);
+						}
+
+						lattice.put(i, n1);
+						lattice.put(j, n2);
 					}
-					
-					lattice.put(i, n1);
-					lattice.put(j, n2);
-					lattice.put(k, n3);
-					lattice.put(m, n4);
 				}
 			}
-		}
-		else if(latticeType == 3){
-			for(int i = 0; i < N+1; i++){
-				if(i == 0 || i == 1){
-					Node n1 = new Node(i, words[i]);
-					
-					if(i == 1){
-						n1.prev.add(i-1);
-						n1.isEndState = true;
-					}
-					
-					for(int j = i+N+1; j < (2*N); j++){
-						n1.next.add(j);
-					}
-					
-					lattice.put(i, n1);
-				}
-				else if(i == N || i == N-1){
-					int j = i+N-1;
-					
-					Node n1 = new Node(i, words[i]);
-					Node n2 = new Node(j, words[i]);
-					
-					if(i == N-1){
-						n1.next.add(i+1);
-						n2.next.add(j+1);
-						n1.isEndState = true;
-					}
-					
-					if(i == N) {
-						n1.isEndState = true;
-						n2.isEndState = true;
-					}
-					
-					n1.prev.add(i-1);
-					n2.prev.add(j-1);
-					
-					for(int k = 0; k < (j-N); k++){
-						n2.prev.add(k);
-					}
-					
-					lattice.put(i, n1);
-					lattice.put(j, n2);
-				}
-				else{
-					int j = i+N-1;
-					
-					Node n1 = new Node(i, words[i]);
-					Node n2 = new Node(j, words[i]);
-					
-					n1.next.add(i+1);
-					n2.next.add(j+1);
-					
-					n1.isEndState = true;
-					
-					n1.prev.add(i-1);
-					if(j-1 != N)
-						n2.prev.add(j-1);
-					
-					for(int m = i+N+1; m < (2*N); m++){
-						n1.next.add(m);
-					}
-					
-					for(int k = 0; k < (j-N); k++){
-						n2.prev.add(k);
-					}
-					
-					lattice.put(i, n1);
-					lattice.put(j, n2);
-				}
-			}
-		}
+		//}
 	}
 
 	private static double[] createZeroArray(int size){
@@ -597,7 +647,8 @@ public class Main {
 					list.add((0.0));
 				}
 				else {
-					list.add((initialValue/(size-1)));
+//					list.add((initialValue/(size-1)));
+					list.add(initialValue);
 				}
 			}
 		}
@@ -713,11 +764,18 @@ public class Main {
 				sum += (n2.alpha.get(j)) * (transitionProbabilities.get(tagList.get(tagNumber) + "-" + tagList.get(j)));
 			else {
 				//System.out.println(tagList.get(tagNumber) + "-" + tagList.get(j));
-				sum += (n2.beta.get(j)) * (transitionProbabilities.get(tagList.get(tagNumber) + "-" + tagList.get(j)));
+				sum += (n2.beta.get(j)) * (transitionProbabilities.get(tagList.get(tagNumber) + "-" + tagList.get(j))) * (emissionProbabilities.get(tagList.get(j)  + "-" + n2.word));
 			}
 		}
-
-		return Math.exp(sum* emissionProbabilities.get(tagList.get(tagNumber) + "-" + n.word));
+		
+		if(decide.equals("alpha")) {
+			return sum* emissionProbabilities.get(tagList.get(tagNumber) + "-" + n.word);
+		}
+		else {
+			return sum;
+		}
+		
+//		return Math.exp(sum* emissionProbabilities.get(tagList.get(tagNumber) + "-" + n.word));
 	}
 	
 	private static double calculate2(Node n, Node n2, int tagNumber, String decide){
@@ -747,7 +805,7 @@ public class Main {
 		ArrayList<Double> scores = new ArrayList<>();
 		
 		for(int i = 0; i < tagSize; i++){
-			double score = (Math.log(alpha.get(i)) * (beta.get(i)));
+			double score = ((alpha.get(i)) * (beta.get(i)));
 			
 			scores.add(i, score);
 		}
@@ -777,6 +835,31 @@ public class Main {
 				emissionProbabilities.put(featureList.get(i), weights[i]);
 			}
 		}
+	}
+	public static void updateProbabilities2(double[] weights, ArrayList<Integer> passedList) {
+		double max = 0;
+		for(int i = 0; i < weights.length; i++) {
+			if(i < transitionProbabilities.size()) {
+				if(passedList.contains(i)) {
+					transitionProbabilities.put(featureList.get(i), 0.0);
+				}
+				else {
+					transitionProbabilities.put(featureList.get(i), weights[i]);
+				}
+			}
+			else {
+				if(passedList.contains(i)) {
+					emissionProbabilities.put(featureList.get(i), 0.0);
+				}
+				else {
+					emissionProbabilities.put(featureList.get(i), weights[i]);
+//					if(weights[i] >= max) {
+//							max = weights[i];
+//					}
+				}
+			}
+		}
+		emissionProbabilities.put("<s>-<s>", 10.0);
 	}
 	
 	public static ArrayList<String> returnUniqueWords(HashMap<Integer, Node> lattice) {

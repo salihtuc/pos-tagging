@@ -91,10 +91,12 @@ public class Function implements DifferentiableFunction {
 
 		return functionValue;
 	}
+	public static ArrayList<Integer> passedList = new ArrayList<>();
 
 	public double[] gradient(double[] iterWeights) {
 
 		double[] grad = new double[iterWeights.length];
+		
 		HashMap<String, Double> gradtransitionProbabilities = new HashMap<>();
 		HashMap<String, Double> grademissionProbabilities = new HashMap<>();
 
@@ -122,9 +124,9 @@ public class Function implements DifferentiableFunction {
 							Node n = lattice.get(k);
 							for (int k1 : n.next) {
 								Node n2 = lattice.get(k1);
-								for (int k2 = 0; k2 < Main.tagSize; k2++) {
-									denom += p(i, k2, n, n2);
-								}
+//								for (int k2 = 0; k2 < Main.tagSize; k2++) {
+//									denom += p(i, k2, n, n2);
+//								}
 								num += p(i, j, n, n2);
 							}
 
@@ -132,22 +134,37 @@ public class Function implements DifferentiableFunction {
 						
 						if (a == 0) {
 							transOriginalNum += num;
-							transOriginalDenom += denom;
+//							transOriginalDenom += denom;
 						} else {
 							transNeighborNum += num;
-							transNeighborDenom += denom;
+//							transNeighborDenom += denom;
 						}
 					}
-					orgScore += divide(divide(transOriginalNum, transOriginalDenom), originalList.get(sentenceCounter));
-					negScore += divide(divide(transNeighborNum, transNeighborDenom), negativeList.get(sentenceCounter));
+//					orgScore += divide(divide(transOriginalNum, transOriginalDenom), originalList.get(sentenceCounter));
+//					negScore += divide(divide(transNeighborNum, transNeighborDenom), negativeList.get(sentenceCounter));
 					
+					orgScore += divide(transOriginalNum, originalList.get(sentenceCounter));
+					negScore += divide(transNeighborNum, negativeList.get(sentenceCounter));
 					sentenceCounter++;
 				}
 				cc++;
 //				gradtransitionProbabilities.put((Main.tagList.get(i) + "-" + Main.tagList.get(j)),
 //						orgScore - negScore);
-				gradtransitionProbabilities.put((Main.tagList.get(i) + "-" + Main.tagList.get(j)),
-						(orgScore - negScore));
+				
+				String key = (Main.tagList.get(i) + "-" + Main.tagList.get(j));
+//				gradtransitionProbabilities.put(key,
+//						(orgScore - negScore));
+				
+				if(key.endsWith("<s>")) {
+					gradtransitionProbabilities.put(key, 0.0);
+				}
+				else {
+					gradtransitionProbabilities.put(key,
+							(orgScore - negScore));
+				}
+				
+				
+				
 						//divide(transOriginalNum, transOriginalDenom));
 			}
 
@@ -174,7 +191,7 @@ public class Function implements DifferentiableFunction {
 							} else {
 								originalwordsNum.put(node.word, g);
 							}
-							emissionOriginalDenom += g;
+//							emissionOriginalDenom += g;
 
 						} else {
 							if (neighborsWord.containsKey(node.word)) {
@@ -183,14 +200,16 @@ public class Function implements DifferentiableFunction {
 							} else {
 								neighborsWord.put(node.word, g);
 							}
-							emissionNeighborDenom += g;
+//							emissionNeighborDenom += g;
 
 						}
 
 					}
 				}
 				for(String s : originalwordsNum.keySet()) {
-					double valOrg = divide(divide(originalwordsNum.get(s), emissionOriginalDenom), originalList.get(sentenceCounter));
+//					double valOrg = divide(divide(originalwordsNum.get(s), emissionOriginalDenom), originalList.get(sentenceCounter));
+					double valOrg = divide(originalwordsNum.get(s), originalList.get(sentenceCounter));
+
 					if (originalMap.containsKey(s)) {
 						originalMap.put(s, originalwordsNum.get(s) + valOrg);
 
@@ -198,7 +217,8 @@ public class Function implements DifferentiableFunction {
 						originalMap.put(s, valOrg);
 					}
 					
-					double valNeg = divide(divide(neighborsWord.get(s), emissionNeighborDenom), negativeList.get(sentenceCounter));
+//					double valNeg = divide(divide(neighborsWord.get(s), emissionNeighborDenom), negativeList.get(sentenceCounter));
+					double valNeg = divide(neighborsWord.get(s), negativeList.get(sentenceCounter));
 					
 					if (negativeMap.containsKey(s)) {
 						negativeMap.put(s, negativeMap.get(s) + valNeg);
@@ -217,14 +237,34 @@ public class Function implements DifferentiableFunction {
 				Double firstVal = (Double) pairs.getValue();
 				Entry<String, Double> pairs2 = neighbors.next();
 				Double secondVal = (Double) pairs2.getValue();
-				grademissionProbabilities.put(Main.tagList.get(i) + "-" + pairs.getKey(),
-						firstVal - secondVal);
+				
+				String key = Main.tagList.get(i) + "-" + pairs.getKey();
+				
+//				grademissionProbabilities.put(key,
+//						firstVal - secondVal);
+				
+				if(key.startsWith("<s>") && key.endsWith("<s>")) {
+					grademissionProbabilities.put(key,
+							1.0);
+				}
+				else if(!key.startsWith("<s>") && !key.endsWith("<s>")) {
+					grademissionProbabilities.put(key,
+							firstVal - secondVal);
+				}
+				else {
+					grademissionProbabilities.put(key, 0.0);
+				}
+				
 						//divide(firstVal, emissionOriginalDenom));
 
 			}
 		}
-
-		grad = Main.createWeightsArray(gradtransitionProbabilities, grademissionProbabilities);
+		
+		passedList.clear();
+		grad = Main.createWeightsArray2(gradtransitionProbabilities, grademissionProbabilities, passedList);
+		
+//		System.out.println("The list: " + Main.featureList);
+//		System.out.println("The Map: " + gradtransitionProbabilities.keySet());
 
 		for (int i = 0; i < grad.length; i++) {
 			grad[i] *= -1;
@@ -259,7 +299,7 @@ public class Function implements DifferentiableFunction {
 		}
 //		
 //		System.out.println("Length: " + grad.length);
-		Main.updateProbabilities(grad);
+		Main.updateProbabilities2(grad, passedList);
 		Main.pw.println("***********************************************NEW ITERATION*********************************************");
 		Main.pw.println("Pre Total: " + dSumPre);
 		System.out.println("Pre Total: " + dSumPre);
@@ -286,17 +326,19 @@ public class Function implements DifferentiableFunction {
 	 */
 	public double p(int i, int j, Node node, Node next) {
 		double num, denom = 0.0;
-		if (node.isEndState)
+		if (node.next.isEmpty())
 			num = (node.alpha.get(i)) * Main.transitionProbabilities.get(Main.tagList.get(i) + "-" + Main.tagList.get(j));
 		else
 			num = (node.alpha.get(i)) * Main.transitionProbabilities.get(Main.tagList.get(i) + "-" + Main.tagList.get(j))
 					* Main.emissionProbabilities.get(Main.tagList.get(j) + "-" + next.word) * (next.beta.get(j));
 
-		for (int k = 0; k < Main.tagSize; k++) {
-			denom += (node.alpha.get(k)) * (node.beta.get(k));
-		}
+//		for (int k = 0; k < Main.tagSize; k++) {
+//			denom += (node.alpha.get(k)) * (node.beta.get(k));
+//		}
 
-		return divide(num, denom);
+//		return divide(num, denom);
+		
+		return num;
 	}
 
 	/** computes gamma(i, node) */
@@ -305,11 +347,13 @@ public class Function implements DifferentiableFunction {
 		double num, denom = 0.0;
 		num = (node.alpha.get(i)) * (node.beta.get(i));
 
-		for (int k = 0; k < Main.tagSize; k++) {
-			denom += (node.alpha.get(k)) * (node.beta.get(k));
-		}
+//		for (int k = 0; k < Main.tagSize; k++) {
+//			denom += (node.alpha.get(k)) * (node.beta.get(k));
+//		}
 
-		return divide(num, denom);
+//		return divide(num, denom);
+		
+		return num;
 	}
 
 	/** divides two doubles. (0 / 0 = 0!) && (1 / 0 = 0!) */
