@@ -45,7 +45,7 @@ public class Node {
 
 	@Override
 	public String toString() {
-		return stateNum + ": " + word + " alpha: " + this.alpha;//" (next: " + next + " | prev: " + prev + ") ";
+		return stateNum + ": " + word + " alpha: " + alpha;// + " (next: " + next + " | prev: " + prev + ") ";
 	}
 	
 }
