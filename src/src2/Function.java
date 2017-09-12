@@ -21,8 +21,9 @@ public class Function implements DifferentiableFunction {
 	// ---------------------------------------------------------
 
 	public double functionValue = 0.0;
-	public static final double LAMBDA_EM = 1;
+	public static final double LAMBDA_EM = 0.1;
 	public int cc = 0;
+	public int iterCount = 0;
 	ArrayList<Double> originalList = new ArrayList<>();
 	ArrayList<Double> negativeList = new ArrayList<>();
 
@@ -31,24 +32,35 @@ public class Function implements DifferentiableFunction {
 
 		// System.out.println("Points:");
 		// Main.printDoubleArray(point);
-
-		FunctionValues fv = new FunctionValues(functionValue(point), gradient(point));
-
-		// Update the feature probabilities!!
-		// Main.updateProbabilities(point);
-
-		for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
-			for (int j = 0; j < globalMap.size(); j++) {
-				HashMap<Integer, Node> targetMap = globalMap.get(j);
-				// System.out.println("Lattice: " + j + "\n" + targetMap);
-				// System.out.println("----------------------");
-
-				// Iterate over targetMap
-				Main.iterateFromStartToEnd(targetMap);
-				Main.iterateFromEndToStart(targetMap);
+		
+		if(iterCount != 0) {
+			Main.updateProbabilities2(point, Main.gradFeature2Index);
+//			System.out.println(Main.transitionProbabilities);
+	
+			// Update the feature probabilities!!
+			// Main.updateProbabilities(point);
+	
+			for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
+				for (int j = 0; j < globalMap.size(); j++) {
+					HashMap<Integer, Node> targetMap = globalMap.get(j);
+					// System.out.println("Lattice: " + j + "\n" + targetMap);
+					// System.out.println("----------------------");
+	
+//					System.out.println(targetMap);
+					// Iterate over targetMap
+					Main.iterateFromStartToEnd(targetMap);
+					Main.iterateFromEndToStart(targetMap);
+					
+//					System.out.println(targetMap);
+//					
+//					System.out.println("NEW");
+				}
 			}
 		}
-
+		iterCount++;
+		
+		FunctionValues fv = new FunctionValues(functionValue(point), gradient(point));
+		
 		return fv;
 	}
 
@@ -65,11 +77,11 @@ public class Function implements DifferentiableFunction {
 				// Main.pw.println(lattice);
 				Node endState = Main.returnEndState(lattice);
 				if (counter == 0) {
-					sumNum += sumListValues(endState.alpha); // Original lattice's score
+					sumNum += sumListValues(endState.tagScores); // Original lattice's score
 					allSumNum += sumNum;
 					counter++;
 				} else {
-					sumDenom += sumListValues(endState.alpha); // Negative samples' scores
+					sumDenom += sumListValues(endState.tagScores); // Negative samples' scores
 					allSumDenom += sumDenom;
 				}
 			}
@@ -122,6 +134,7 @@ public class Function implements DifferentiableFunction {
 						// double denom = 0;
 
 						HashMap<Integer, Node> lattice = globalMap.get(a);
+//						System.out.println(lattice);
 
 						for (int k = 0; k < lattice.size() - 1; k++) {
 							Node n = lattice.get(k);
@@ -132,8 +145,11 @@ public class Function implements DifferentiableFunction {
 								// }
 								num += p(i, j, n, n2);
 							}
-
+							if(n.next.isEmpty()) {
+								num += p(i, j, n);
+							}
 						}
+						
 
 						if (a == 0) {
 							transOriginalNum += num;
@@ -160,18 +176,26 @@ public class Function implements DifferentiableFunction {
 				String key = (Main.tagList.get(i) + "-" + Main.tagList.get(j));
 				// gradtransitionProbabilities.put(key,
 				// (orgScore - negScore));
+				
+				double score = orgScore - negScore;
+				
+				if(score == 0.0) {
+					score += 0.1;
+				}
 
 				if (key.endsWith("<s>") || key.startsWith("</s>")) {
 					gradtransitionProbabilities.put(key, 0.0);
 				} else if (key.equals("<s>-</s>")) {
 					gradtransitionProbabilities.put(key, 0.0);
 				} else {
-					gradtransitionProbabilities.put(key, (orgScore - negScore));
-					totalTransition += orgScore - negScore;
+					gradtransitionProbabilities.put(key, (score));
+					totalTransition += score;
 				}
 
 				// divide(transOriginalNum, transOriginalDenom));
 			}
+			
+//			System.out.println(gradtransitionProbabilities);
 
 			/* re-estimation of emission probabilities NEW VERSION */
 			// for (int i = 0; i < Main.tagSize; i++) {
@@ -252,7 +276,7 @@ public class Function implements DifferentiableFunction {
 
 				
 				if (key.contains("<s>") || key.contains("</s>")) {
-					if (key.equals("<s>-<s>") && key.equals("</s>-</s>")) {
+					if (key.equals("<s>-<start>") && key.equals("</s>-<end>")) {
 						grademissionProbabilities.put(key, 1.0);
 	
 						totalEmission += 1.0;
@@ -305,8 +329,11 @@ public class Function implements DifferentiableFunction {
 		// }
 		// grademissionProbabilities.put(s, divide(d, totalEmission));
 		// }
+		
+//		System.out.println(gradtransitionProbabilities);
 		grad = Main.createGradArray(gradtransitionProbabilities, grademissionProbabilities, Main.gradFeature2Index);
-
+//		Main.printDoubleArray(grad);
+		
 		// System.out.println("The list: " + Main.featureList);
 		// System.out.println("The Map: " + gradtransitionProbabilities.keySet());
 
@@ -340,11 +367,13 @@ public class Function implements DifferentiableFunction {
 			dSum += grad[i];
 			// Main.pw.println(grad[i]);
 		}
+		
+//		Main.printDoubleArray(grad);
 		//
 		// System.out.println("Length: " + grad.length);
 		// System.out.println("Before: " + Main.transitionProbabilities.get("<s>-t7"));
 
-		Main.updateProbabilities2(grad, Main.gradFeature2Index);
+//		Main.updateProbabilities2(grad, Main.gradFeature2Index);
 		// System.out.println("After: " + Main.transitionProbabilities.get("<s>-t7"));
 
 		Main.pw.println(
@@ -388,6 +417,15 @@ public class Function implements DifferentiableFunction {
 		// }
 
 		// return divide(num, denom);
+
+		return num;
+	}
+	
+	public double p(int i, int j, Node node) {
+		
+		double num;
+		num = (node.alpha.get(i)) * Main.transitionProbabilities.get(Main.tagList.get(i) + "-" + Main.tagList.get(j));
+
 
 		return num;
 	}
@@ -437,13 +475,6 @@ public class Function implements DifferentiableFunction {
 		}
 
 		return (sum);
-	}
-
-	private void updateFeatures(HashMap<String, Double> transitionMap, HashMap<String, Double> emissionMap,
-			double[] updatedValues) {
-		for (int i = 0; i < updatedValues.length; i++) {
-
-		}
 	}
 
 }

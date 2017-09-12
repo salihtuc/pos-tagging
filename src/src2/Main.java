@@ -39,6 +39,9 @@ public class Main {
 	
 	public static ArrayList<HashMap<Integer, HashMap<Integer, Node>>> sentenceGlobals = new ArrayList<>();
 	
+	
+	public static HashMap<String, Double> initialProbabilities = new HashMap<>();
+	
 	public static HashMap<String, Double> transitionProbabilities = new HashMap<>();
 	public static HashMap<String, Double> emissionProbabilities = new HashMap<>();
 	
@@ -63,7 +66,7 @@ public class Main {
 		
 		//try (BufferedReader br = new BufferedReader(new FileReader("PennCorpus12.txt"))) {
 		try (BufferedReader br = new BufferedReader(new FileReader("input.txt"))) {
-			String start = "<s> ";
+			String start = "<start> ";
 			String line;
 
 			while ((line = br.readLine()) != null) {
@@ -76,7 +79,7 @@ public class Main {
 				
 			}
 
-			allWords.add("</s>");
+			allWords.add("<end>");
 			uniqueValues = new HashSet<>(allWords);
 			allWords.clear();
 			allWords.addAll(uniqueValues);
@@ -95,7 +98,10 @@ public class Main {
 		for(String sentence : sentences)
 			fillEmissionMap(sentence);	// Creating emissionProbabilities map
 		
-		fillEmissionMap("</s>");
+		fillEmissionMap("<end>");
+		fillInitials("initialProb.txt");
+		
+//		System.out.println(transitionProbabilities);
 		
 		tagFeatureWeights = createWeightsArray(transitionProbabilities, emissionProbabilities, gradFeature2Index);
 //		System.out.println(transitionProbabilities);
@@ -104,12 +110,11 @@ public class Main {
 //		System.out.println(emissionProbabilities.size());
 //		System.out.println(tagFeatureWeights.length);
 //		tagFeatureGradients = createZeroArray(tagFeatureWeights.length);
-		fillFeatures(transitionProbabilities, emissionProbabilities);
+//		fillFeatures(transitionProbabilities, emissionProbabilities);
 		
 		
 //		System.out.println("Transitions:\n" + transitionProbabilities);
 //		System.out.println("------------\nEmissions:\n" + emissionProbabilities + "\n-----------");
-		
 		
 		for(String sentence : sentences) {
 			
@@ -140,6 +145,7 @@ public class Main {
 //			System.out.println(a[i]);
 //		}
 		
+			
 			for(int j = 0; j < globalMap.size(); j++) {
 				HashMap<Integer, Node> targetMap = globalMap.get(j);
 //				System.out.println("Lattice: " + j + "\n" + targetMap);
@@ -149,9 +155,7 @@ public class Main {
 				iterateFromStartToEnd(targetMap);
 				iterateFromEndToStart(targetMap);
 				
-//				System.out.println(targetMap);
 			}
-		
 		}
 		
 		/* LBFGS-B part */
@@ -226,6 +230,41 @@ public class Main {
 		System.out.println();
 		//Main.pw.println();
 	}
+	
+	private static void fillInitials(String fileName){
+		try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
+			String line;
+			
+			while ((line = br.readLine()) != null) {
+				String[] values = line.split(" ");
+				String tag = values[0].replaceAll("\\|", "-");
+				double prob = Double.parseDouble(values[1]);
+				
+				if(tag.endsWith("_t")) {
+					tag = tag.substring(0, tag.length()-2);
+//					System.out.println(tag);
+					
+					if(transitionProbabilities.containsKey(tag)) {
+						transitionProbabilities.put(tag, prob);
+					}
+				}
+				else {
+					if(!tag.endsWith("<start>") && !tag.endsWith("<end>")) {
+						tag = tag.substring(0, tag.lastIndexOf("/"));
+//						System.out.println(tag);
+					}
+					if(emissionProbabilities.containsKey(tag)) {
+						emissionProbabilities.put(tag, prob);
+					}
+				}
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
 	private static void fillTagList(){
 		tagList.add("t1");
 		tagList.add("t2");
@@ -249,14 +288,14 @@ public class Main {
 		
 //		double value = 1.0 / (tagSize);	// For uniform values
 		Random r = new Random();
-		double value = 0.1;	// For zero values
+		double value = 0.00000001;	// For zero values
 		
 		for(int i = 0; i < (tagSize); i++){
 			for(int j = 0; j < (tagSize); j++){
-//				double value = (r.nextInt(100) / 100.0);
+//				double value = (r.nextInt(100) / 10000.0);
 				
 				String key = (tagList.get(i) + "-" + tagList.get(j));
-				
+
 				if(!key.endsWith("<s>") && !key.startsWith("</s>")) {
 					if(key.equals("<s>-</s>")) {
 						transitionProbabilities.put(key, 0.0);
@@ -270,7 +309,7 @@ public class Main {
 						transitionProbabilities.put(key, 0.0);
 					}
 					else {
-						transitionProbabilities.put(key, 1.0);
+						transitionProbabilities.put(key, value);
 					}
 				}
 				else {
@@ -284,18 +323,18 @@ public class Main {
 	private static void fillEmissionMap(String sentence){
 		words = new ArrayList<String>(Arrays.asList(sentence.split(" ")));
 		//double value = 1.0 / (allWords.size());	// For uniform values
-		double value = 0.1;	// For zero values
-//		Random r = new Random();
+		double value = 0.00000001;	// For zero values
+		Random r = new Random();
 		
 		
 		for(int i = 0; i < tagSize; i++){
 			for(String word : words){
-//				double value = (r.nextInt(100) / 100.0);
+//				double value = (r.nextInt(100) / 10000.0);
 				String key = tagList.get(i) + "-" + word;
 				if(!emissionProbabilities.containsKey(key)) {
 					
-					if(key.startsWith("<s>") || key.endsWith("<s>")) {
-						if(key.startsWith("<s>") && key.endsWith("<s>")) {
+					if(key.startsWith("<s>") || key.endsWith("<start>")) {
+						if(key.startsWith("<s>") && key.endsWith("<start>")) {
 							emissionProbabilities.put(key, 1.0);
 						}
 						else {
@@ -303,7 +342,7 @@ public class Main {
 						}
 					}
 					else if(key.contains("</s>")) {
-						if(key.equals("</s>-</s>")) {
+						if(key.equals("</s>-<end>")) {
 							emissionProbabilities.put(key, 1.0);
 						}
 						else {
@@ -318,36 +357,36 @@ public class Main {
 		}
 	}
 	
-	private static void fillFeatures(HashMap<String, Double> transitionMap, HashMap<String, Double> emissionMap){
-		int i = 0;
-		for(String s : transitionMap.keySet()) {
-			featureList.add(s);
-			tagFeature2Index.put(s, i);
-			i++;
-		}
-		
-		for(String s : emissionMap.keySet()) {
-			featureList.add(s);
-			tagFeature2Index.put(s, i);
-			i++;
-		}
-	}
-	
-	private static void fillFeatures2(HashMap<String, Double> transitionMap, HashMap<String, Double> emissionMap, HashMap<String, Integer> gradFeature2Index){
-		int i = 0;
-		for(String s : transitionMap.keySet()) {
-			featureList.add(s);
-			tagFeature2Index.put(s, i);
-			i++;
-		}
-		
-		for(String s : emissionMap.keySet()) {
-			featureList.add(s);
-			tagFeature2Index.put(s, i);
-			i++;
-		}
-	}
-	
+//	private static void fillFeatures(HashMap<String, Double> transitionMap, HashMap<String, Double> emissionMap){
+//		int i = 0;
+//		for(String s : transitionMap.keySet()) {
+//			featureList.add(s);
+//			tagFeature2Index.put(s, i);
+//			i++;
+//		}
+//		
+//		for(String s : emissionMap.keySet()) {
+//			featureList.add(s);
+//			tagFeature2Index.put(s, i);
+//			i++;
+//		}
+//	}
+//	
+//	private static void fillFeatures2(HashMap<String, Double> transitionMap, HashMap<String, Double> emissionMap, HashMap<String, Integer> gradFeature2Index){
+//		int i = 0;
+//		for(String s : transitionMap.keySet()) {
+//			featureList.add(s);
+//			tagFeature2Index.put(s, i);
+//			i++;
+//		}
+//		
+//		for(String s : emissionMap.keySet()) {
+//			featureList.add(s);
+//			tagFeature2Index.put(s, i);
+//			i++;
+//		}
+//	}
+//	
 	protected static double[] createWeightsArray(HashMap<String, Double> transitionMap, HashMap<String, Double> emissionMap, HashMap<String, Integer> gradFeature2Index) {
 		int size = transitionMap.size() + emissionMap.size();
 		
@@ -357,9 +396,9 @@ public class Main {
 		for (String s : transitionMap.keySet()) {
 			weights[i] = transitionMap.get(s);
 			
-			if(s.equals("<s>-<s>") || s.equals("</s>-</s>")) {
-				s = s + "t"; //TODO
-			}
+//			if(s.equals("<s>-<start>") || s.equals("</s>-<end>")) {
+//				s = s + "t"; //TODO
+//			}
 			gradFeature2Index.put(s, i);
 			i++;	
 		}
@@ -392,46 +431,46 @@ public class Main {
 //		return weights;
 //	}
 	
-	protected static double[] createWeightsArray2(HashMap<String, Double> transitionMap, HashMap<String, Double> emissionMap, HashMap<String, Integer> gradFeature2Index) {
-		int size = (tagSize * (tagSize-1)) + ((allWords.size()-1) * 12 + 1); // transition + emission
-		
-		double[] weights = new double[size];
-		
-		int i = 0;
-		
-		for(String s : transitionMap.keySet()) {
-			if(s.endsWith("<s>")) {
-				
-			}
-			else {
-				weights[i] = transitionMap.get(s);
-				gradFeature2Index.put(s, i);
-				i++;
-			}
-			
-		}
-		for(String s : emissionMap.keySet()) {
-			if(s.endsWith("<s>") || s.startsWith("<s>")) { // tag || word
-				if(s.endsWith("<s>") && s.startsWith("<s>")) {
-					weights[i] = 1.0;
-					gradFeature2Index.put(s, i);
-					i++;
-				}
-				else {
-				}
-				
-			}
-			else {
-				weights[i] = emissionMap.get(s);
-				gradFeature2Index.put(s, i);
-				i++;
-			}
-			
-		}
-		
-		return weights;
-	}
-	
+//	protected static double[] createWeightsArray2(HashMap<String, Double> transitionMap, HashMap<String, Double> emissionMap, HashMap<String, Integer> gradFeature2Index) {
+//		int size = (tagSize * (tagSize-1)) + ((allWords.size()-1) * 12 + 1); // transition + emission
+//		
+//		double[] weights = new double[size];
+//		
+//		int i = 0;
+//		
+//		for(String s : transitionMap.keySet()) {
+//			if(s.endsWith("<s>")) {
+//				
+//			}
+//			else {
+//				weights[i] = transitionMap.get(s);
+//				gradFeature2Index.put(s, i);
+//				i++;
+//			}
+//			
+//		}
+//		for(String s : emissionMap.keySet()) {
+//			if(s.endsWith("<s>") || s.startsWith("<s>")) { // tag || word
+//				if(s.endsWith("<s>") && s.startsWith("<s>")) {
+//					weights[i] = 1.0;
+//					gradFeature2Index.put(s, i);
+//					i++;
+//				}
+//				else {
+//				}
+//				
+//			}
+//			else {
+//				weights[i] = emissionMap.get(s);
+//				gradFeature2Index.put(s, i);
+//				i++;
+//			}
+//			
+//		}
+//		
+//		return weights;
+//	}
+//	
 	protected static double[] createGradArray(HashMap<String, Double> transitionMap, HashMap<String, Double> emissionMap, HashMap<String, Integer> gradFeature2Index) {
 		//int size = (tagSize * (tagSize-1)) + ((allWords.size()-1) * 12 + 1); // transition + emission
 		int size = transitionMap.size() + emissionMap.size();
@@ -440,7 +479,8 @@ public class Main {
 		int index = 0;
 		
 		for(String s : transitionMap.keySet()) {
-			if(s.equals("</s>-</s>t") || s.equals("<s>-<s>t")) {
+//			System.out.println(s);
+			if(s.equals("</s>-</s>") || s.equals("<s>-<s>")) {
 				index = gradFeature2Index.get(s);
 				weights[index] = 0.0;
 			}
@@ -455,8 +495,8 @@ public class Main {
 		}
 		
 		for(String s : emissionMap.keySet()) {
-			if(s.startsWith("<s>") || s.endsWith("<s>")) {
-				if(s.startsWith("<s>") && s.endsWith("<s>")) {
+			if(s.startsWith("<s>") || s.endsWith("<start>")) {
+				if(s.startsWith("<s>") && s.endsWith("<start>")) {
 					index = gradFeature2Index.get(s);
 					weights[index] = 1.0;
 				}
@@ -465,8 +505,8 @@ public class Main {
 					weights[index] = 0.0;
 				}
 			}
-			else if(s.contains("</s>")) {
-				if(s.equals("</s>-</s>")) {
+			else if(s.startsWith("</s>") || s.endsWith("<end>")) {
+				if(s.equals("</s>-<end>")) {
 					index = gradFeature2Index.get(s);
 					weights[index] = 1.0;
 				}
@@ -751,7 +791,7 @@ public class Main {
 			}
 		//}
 			int size = lattice.size();
-			Node finalNode = new Node(size, "</s>");
+			Node finalNode = new Node(size, "<end>");
 			for(Node n : returnEndStates(lattice)) {
 				n.next.add(finalNode.stateNum);
 				finalNode.prev.add(n.stateNum);
@@ -762,28 +802,20 @@ public class Main {
 			
 	}
 
-	private static double[] createZeroArray(int size){
-		double[] array = new double[size];
-		
-		for(int i = 0; i < size; i++){
-			array[i] = 0.0;
-		}
-		
-		return array;
-	}
+//	private static double[] createZeroArray(int size){
+//		double[] array = new double[size];
+//		
+//		for(int i = 0; i < size; i++){
+//			array[i] = 0.0;
+//		}
+//		
+//		return array;
+//	}
 
 	// For creating list values uniformly
-	private static ArrayList<Double> createUniformList(int size, boolean isStartState, String decide){
+	private static ArrayList<Double> createUniformList(int size, boolean isStartState){
 		ArrayList<Double> list = new ArrayList<>();
-		double initialValue;
-		
-		if(decide.equals("alpha")) {
-			initialValue = Math.PI;
-		}
-		else {
-			initialValue = 1.0;
-		}
-		
+
 		if(isStartState) {
 			for(int i = 0; i < size; i++){
 				if(i == size-2) {
@@ -814,10 +846,10 @@ public class Main {
 		for(Node node : latticeMap.values()){
 //			System.out.println(node.word);
 			if(node.prev.isEmpty()){	// Start node
-				node.alpha = createUniformList(tagSize, node.isStartState, "alpha");
+				node.alpha = createUniformList(tagSize, node.isStartState);
 			}
 			else if(node.next.isEmpty()){	// End node
-				node.beta = createUniformList(tagSize, node.isStartState, "beta");
+				node.beta = createUniformList(tagSize, node.isStartState);
 				node.alpha = calculateValue(node.prev, node, latticeMap, "alpha");
 				node.tagScores = multiply(node.alpha, node.beta);
 			}
@@ -851,20 +883,20 @@ public class Main {
 		if(decide.equals("alpha")){
 			n.alpha.clear();
 			
-			if(n.next.isEmpty()) {
-				for(int i = 0; i < tagSize-1; i++){
-					n.alpha.add(i, 0.0);
-				}
-				double finalResult = 0;
-				for(int counter : neighbors){
-					Node n2 = latticeMap.get(counter);
-					finalResult += calculate(n, n2, tagSize-1, decide);
-					
-				}
-				n.alpha.add(tagSize-1, finalResult);
-			}
-			else {
-				for(int i = 0; i < tagSize-2; i++){
+//			if(n.next.isEmpty()) {
+//				for(int i = 0; i < tagSize-1; i++){
+//					n.alpha.add(i, 0.0);
+//				}
+//				double finalResult = 0;
+//				for(int counter : neighbors){
+//					Node n2 = latticeMap.get(counter);
+//					finalResult += calculate(n, n2, tagSize-1, decide);
+//					
+//				}
+//				n.alpha.add(tagSize-1, finalResult);
+//			}
+//			else {
+				for(int i = 0; i < tagSize; i++){
 					double finalResult = 0;
 					for(int counter : neighbors){
 						Node n2 = latticeMap.get(counter);
@@ -874,25 +906,33 @@ public class Main {
 					n.alpha.add(i, finalResult);
 					
 				}
-				n.alpha.add(tagSize-2, (0.0));
-				n.alpha.add(tagSize-1, (0.0));
-			}
+//				n.alpha.add(tagSize-2, (0.0));
+//				n.alpha.add(tagSize-1, (0.0));
+//			}
 			
 			return n.alpha;
 		}
 		else{
 			n.beta.clear();
-			for(int i = 0; i < tagSize-2; i++){
-				double finalResult = 0;
-				for(int counter : neighbors){
-					Node n2 = latticeMap.get(counter);
-					finalResult += calculate(n, n2, i, decide);
-					
+//			if(n.next.isEmpty()) {
+//				for(int i = 0; i < tagSize-1; i++){
+//					n.beta.add(i, 0.0);
+//				}
+//				n.beta.add(tagSize-1, 1.0);
+//			}
+//			else {
+				for(int i = 0; i < tagSize; i++){
+					double finalResult = 0;
+					for(int counter : neighbors){
+						Node n2 = latticeMap.get(counter);
+						finalResult += calculate(n, n2, i, decide);
+						
+					}
+					n.beta.add(i, finalResult);
 				}
-				n.beta.add(i, finalResult);
-			}
-			n.beta.add(tagSize-2, (0.0));
-			n.beta.add(tagSize-1, (0.0));
+//				n.beta.add(tagSize-2, (0.0));
+//				n.beta.add(tagSize-1, (0.0));
+//			}
 			
 			return n.beta;
 		}
@@ -932,29 +972,18 @@ public class Main {
 	// Using for calculating values of a node
 	private static double calculate(Node n, Node n2, int tagNumber, String decide){
 		double sum = 0;
-		for (int j = 0; j < tagSize-1; j++) {
+		for (int j = 0; j < tagSize; j++) {
 			
 			if(decide.equals("alpha"))
 				sum += (n2.alpha.get(j)) * (transitionProbabilities.get(tagList.get(j) + "-" + tagList.get(tagNumber)));
 			else {
 				//System.out.println(tagList.get(tagNumber) + "-" + tagList.get(j));
-				if(n2.word.equals("</s>")) {
-					sum += (n2.beta.get(j)) * (transitionProbabilities.get(tagList.get(tagNumber) + "-" + tagList.get(j)));
-				}
-				else {
-					sum += (n2.beta.get(j)) * (transitionProbabilities.get(tagList.get(tagNumber) + "-" + tagList.get(j))) * (emissionProbabilities.get(tagList.get(j)  + "-" + n2.word));
-			
-				}
+				sum += (n2.beta.get(j)) * (transitionProbabilities.get(tagList.get(tagNumber) + "-" + tagList.get(j))) * (emissionProbabilities.get(tagList.get(j)  + "-" + n2.word));
 			}
 		}
 		
 		if(decide.equals("alpha")) {
-			if(n.next.isEmpty()) {
-				return sum;
-			}
-			else {
-				return sum* emissionProbabilities.get(tagList.get(tagNumber) + "-" + n.word);
-			}
+			return sum* emissionProbabilities.get(tagList.get(tagNumber) + "-" + n.word);
 		}
 		else {
 			return sum;
@@ -1021,38 +1050,38 @@ public class Main {
 		return endStates;
 	}
 	
-	public static void updateProbabilities(double[] weights) {
-		for(int i = 0; i < weights.length; i++) {
-			if(i < transitionProbabilities.size()) {
-				if(featureList.get(i).endsWith("<s>")) {
-					transitionProbabilities.put(featureList.get(i), 0.0);
-				}
-				else {
-					transitionProbabilities.put(featureList.get(i), weights[i]);
-				}
-			}
-			else {
-				if(featureList.get(i).startsWith("<s>") || featureList.get(i).endsWith("<s>")) {
-					if(featureList.get(i).startsWith("<s>") && featureList.get(i).endsWith("<s>")) {	// <s>-<s> emission
-						emissionProbabilities.put(featureList.get(i), 10.0);
-					}
-					else {
-						emissionProbabilities.put(featureList.get(i), 0.0);
-					}
-				}
-				else {
-					emissionProbabilities.put(featureList.get(i), weights[i]);
-				}
-			}
-		}
-	}
+//	public static void updateProbabilities(double[] weights) {
+//		for(int i = 0; i < weights.length; i++) {
+//			if(i < transitionProbabilities.size()) {
+//				if(featureList.get(i).endsWith("<s>")) {
+//					transitionProbabilities.put(featureList.get(i), 0.0);
+//				}
+//				else {
+//					transitionProbabilities.put(featureList.get(i), weights[i]);
+//				}
+//			}
+//			else {
+//				if(featureList.get(i).startsWith("<s>") || featureList.get(i).endsWith("<s>")) {
+//					if(featureList.get(i).startsWith("<s>") && featureList.get(i).endsWith("<s>")) {	// <s>-<s> emission
+//						emissionProbabilities.put(featureList.get(i), 10.0);
+//					}
+//					else {
+//						emissionProbabilities.put(featureList.get(i), 0.0);
+//					}
+//				}
+//				else {
+//					emissionProbabilities.put(featureList.get(i), weights[i]);
+//				}
+//			}
+//		}
+//	}
 	public static void updateProbabilities2(double[] weights, HashMap<String, Integer> gradFeature2Index) {
 		for(String s : gradFeature2Index.keySet()) {
 			int index = gradFeature2Index.get(s);
 			
-			if(s.equals("<s>-<s>t") || s.equals("</s>-</s>t")) {
-				s = s.substring(0, s.length()-1);
-			}
+//			if(s.equals("<s>-<s>t") || s.equals("</s>-</s>t")) {
+//				s = s.substring(0, s.length()-1);
+//			}
 			
 			if(transitionProbabilities.containsKey(s)) {
 				transitionProbabilities.put(s, weights[index]);
