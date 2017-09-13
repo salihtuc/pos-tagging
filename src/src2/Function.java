@@ -21,7 +21,7 @@ public class Function implements DifferentiableFunction {
 	// ---------------------------------------------------------
 
 	public double functionValue = 0.0;
-	public static final double LAMBDA_EM = 0.1;
+	public static final double LAMBDA_EM = 1;
 	public int cc = 0;
 	public int iterCount = 0;
 	ArrayList<Double> originalList = new ArrayList<>();
@@ -68,6 +68,8 @@ public class Function implements DifferentiableFunction {
 	double allSumDenom = 0;
 
 	public double functionValue(double[] iterWeights) {
+		originalList.clear();
+		negativeList.clear();
 		functionValue = 0.0;
 		for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) { // Iterate for all sentences
 			int counter = 0;

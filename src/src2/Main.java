@@ -234,14 +234,14 @@ public class Main {
 	private static void fillInitials(String fileName){
 		try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
 			String line;
-			
+			int i = 1;
 			while ((line = br.readLine()) != null) {
 				String[] values = line.split(" ");
 				String tag = values[0].replaceAll("\\|", "-");
 				double prob = Double.parseDouble(values[1]);
 				
-				if(tag.endsWith("_t")) {
-					tag = tag.substring(0, tag.length()-2);
+				if(i <= 142) {
+//					tag = tag.substring(0, tag.length()-2);
 //					System.out.println(tag);
 					
 					if(transitionProbabilities.containsKey(tag)) {
@@ -249,14 +249,16 @@ public class Main {
 					}
 				}
 				else {
-					if(!tag.endsWith("<start>") && !tag.endsWith("<end>")) {
-						tag = tag.substring(0, tag.lastIndexOf("/"));
-//						System.out.println(tag);
-					}
+//					if(!tag.endsWith("<start>") && !tag.endsWith("<end>")) {
+//						tag = tag.substring(0, tag.lastIndexOf("/"));
+////						System.out.println(tag);
+//					}
 					if(emissionProbabilities.containsKey(tag)) {
 						emissionProbabilities.put(tag, prob);
 					}
 				}
+				
+				i++;
 			}
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -288,7 +290,7 @@ public class Main {
 		
 //		double value = 1.0 / (tagSize);	// For uniform values
 		Random r = new Random();
-		double value = 0.00000001;	// For zero values
+		double value = 0.0000000001;	// For zero values
 		
 		for(int i = 0; i < (tagSize); i++){
 			for(int j = 0; j < (tagSize); j++){
@@ -323,7 +325,7 @@ public class Main {
 	private static void fillEmissionMap(String sentence){
 		words = new ArrayList<String>(Arrays.asList(sentence.split(" ")));
 		//double value = 1.0 / (allWords.size());	// For uniform values
-		double value = 0.00000001;	// For zero values
+		double value = 0.0000000001;	// For zero values
 		Random r = new Random();
 		
 		
@@ -529,7 +531,7 @@ public class Main {
 	static int sentenceCount = 0;
 	public static void fillLattice(String[] words, HashMap<Integer, Node> lattice, int latticeType) {
 		int N = words.length - 1;
-		//if (N > 2) {
+		if (N > 2) {
 			sentenceCount++;
 			if (latticeType == 0) { // Original Lattice
 				for (int i = 0; i < N + 1; i++) {
@@ -789,7 +791,7 @@ public class Main {
 					}
 				}
 			}
-		//}
+		}
 			int size = lattice.size();
 			Node finalNode = new Node(size, "<end>");
 			for(Node n : returnEndStates(lattice)) {
