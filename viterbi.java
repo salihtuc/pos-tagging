@@ -45,7 +45,7 @@ public class viterbi {
 
 		System.out.println("=== Building The Model");
 		start = System.nanoTime();
-		buildModel1();
+		buildModel();
 		elapsedTime = System.nanoTime() - start;
 		System.out.println("=== Building The Model Completed");
 		System.out.println("Total time: " + elapsedTime);
@@ -53,13 +53,13 @@ public class viterbi {
 		states = statess.size();
 		// System.out.println(statess);
 		
-//		System.out.println("=== Tagging the text");
-//		start = System.nanoTime();
-//
-//		tagging("out400.txt", "deneme_out400.txt");
-//		elapsedTime = System.nanoTime() - start;
-//		System.out.println("=== Tagging Completed");
-//		System.out.println("Total time: " + elapsedTime);
+		System.out.println("=== Tagging the text");
+		start = System.nanoTime();
+
+		tagging("out400.txt", "out400_B_LBFGS.txt");
+		elapsedTime = System.nanoTime() - start;
+		System.out.println("=== Tagging Completed");
+		System.out.println("Total time: " + elapsedTime);
 	}
 
 	private static void leplaceSmoothing(String word, String i) {
@@ -108,7 +108,7 @@ public class viterbi {
 			String sentence = br.readLine();
 
 			while (sentence != null) {
-				sentence = sentence + " <end>";
+				sentence = sentence +" <end>";
 				String[] words = sentence.toLowerCase().split("\\s+");
 				viterbi = new double[states][words.length];
 				vitPrev = new int[states][words.length];
@@ -141,7 +141,8 @@ public class viterbi {
 						idx = i;
 					}
 				}
-				for (int i = n - 1; i >= 0; i--) {
+				idx = vitPrev[idx][n];
+				for (int i = n-1; i >= 0; i--) {
 
 					String cek = statess.get(idx);
 					//// String truetag = getTag(words[i]);
@@ -180,15 +181,18 @@ public class viterbi {
 
 	private static double vitScore(String tag, String word, int idxWord, int idxTag) {
 		double max = 0.0;
-		double emProb = 0.0;
+		double emProb = 0.00000001;
 		String emit = tag + "-" + word;
-		emProb = emissions.get(emit);
+		if (emissions.keySet().contains(emit))
+			emProb = emissions.get(emit);
+		
+			
 
 		if (idxWord == 0) {
-			double transProb = 0.0;
+			double transProb = 0.00000001;
 			String trans = "<s>-" + tag;
-
-			transProb = transitions.get(trans);
+			if (transitions.keySet().contains(trans))
+				transProb = transitions.get(trans);
 			//// NodeV trans = transitions.get("<s>");
 			//// if (trans.vals.containsKey(tag)) {
 			//// transProb = trans.vals.get(tag);
@@ -200,9 +204,11 @@ public class viterbi {
 			for (int i = 0; i < statess.size(); i++) {
 				String prevTag = statess.get(i);
 				double prevVitS = viterbi[i][idxWord - 1];
-				double transProb = 0.0;
+				double transProb = 0.00000001;
 				String trans = prevTag + "-" + tag;
-				transProb = transitions.get(trans);
+				if (transitions.keySet().contains(trans))
+					transProb = transitions.get(trans);
+				
 				double score = (prevVitS * transProb * emProb);
 				if (score > max) {
 					max = score;
@@ -216,7 +222,7 @@ public class viterbi {
 	
 	private static void buildModel() throws IOException {
 
-		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("outp.txt"), "UTF8"));
+		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("outp_B_LBFGS.txt"), "UTF8"));
 		String tagPrev = "start";
 		String tag = "";
 		String word = "";
@@ -249,6 +255,7 @@ public class viterbi {
 		} finally {
 			br.close();
 		}
+//		System.out.println(statess);
 
 	}
 
@@ -307,7 +314,7 @@ public class viterbi {
 
 	private static void buildModel1() throws IOException {
 
-		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("tagged400.txt"), "UTF8"));
+		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("out-result16.txt"), "UTF8"));
 		String tagPrev = "<s>";
 		String tag = "";
 		String word = "";
