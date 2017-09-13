@@ -20,7 +20,7 @@ public class viterbi {
 	private static HashMap<String, Double> transitions;
 	private static HashMap<String, Double> emissions;
 	private static HashMap<String, Double> tagValues;
-	
+	private static HashMap<String, String> tagConvert;
 	private static HashMap<String, Double> tagValuesEmission;
 	private static ArrayList<String> statess;
 	private static HashSet<String> wordsAll;
@@ -34,7 +34,8 @@ public class viterbi {
 
 		transitions = new HashMap<String, Double>();
 		emissions = new HashMap<String, Double>();
-
+		tagConvert = new HashMap<String, String>();
+		
 		tagValues = new HashMap<String, Double>();
 		tagValuesEmission = new HashMap<String, Double>();
 		statess = new ArrayList<String>();
@@ -215,7 +216,7 @@ public class viterbi {
 	
 	private static void buildModel() throws IOException {
 
-		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("outpInitial.txt"), "UTF8"));
+		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("outp.txt"), "UTF8"));
 		String tagPrev = "start";
 		String tag = "";
 		String word = "";
@@ -262,15 +263,19 @@ public class viterbi {
 			transitions.put(keyTrans, 1.0);
 			tagValues.put(prevTag, 1.0);
 		}
-
+//		if (tagValuesEmission.keySet().contains(tag)) {
+//			double value = tagValuesEmission.get(tag);
+//			tagValuesEmission.put(tag, tagValuesEmission.get(tag) + 1);
+//			
+//		} else {
+//			tagValuesEmission.put(tag, 1.0);
+//		}
 		if (emissions.keySet().contains(keyEmit)) {
 			double value = emissions.get(keyEmit);
 			emissions.put(keyEmit, value + 1);
-			tagValuesEmission.put(tag, tagValuesEmission.get(tag) + 1);
 			
 		} else {
 			emissions.put(keyEmit, 1.0);
-			tagValuesEmission.put(tag, 1.0);
 		}
 
 	}
@@ -280,13 +285,14 @@ public class viterbi {
 		for (String key : transitions.keySet()) {
 			String prevTag = key.split("\\|")[0];
 			transitions.put(key, transitions.get(key) / tagValues.get(prevTag));
-			pw.println(key+transitions.get(key) / tagValues.get(prevTag));
+			pw.println(key+" "+transitions.get(key) / tagValues.get(prevTag));
 		}
 
 		for (String key : emissions.keySet()) {
 			String tag = key.split("\\|")[0];
-			emissions.put(key, emissions.get(key) / tagValuesEmission.get(tag));
-			pw.println(key+" "+emissions.get(key) / tagValuesEmission.get(tag));
+			System.out.println(key);
+			emissions.put(key, emissions.get(key) / tagValues.get(tag));
+			pw.println(key+" "+emissions.get(key) / tagValues.get(tag));
 		}
 		
 		emissions.put("<s>|<start>",1.0);
@@ -301,10 +307,11 @@ public class viterbi {
 
 	private static void buildModel1() throws IOException {
 
-		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("outp.txt"), "UTF8"));
+		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("tagged400.txt"), "UTF8"));
 		String tagPrev = "<s>";
 		String tag = "";
 		String word = "";
+		int tagCounter=1;
 		try {
 			String line = br.readLine();
 			int i = 1;
@@ -315,7 +322,17 @@ public class viterbi {
 					// "+words[1]+" "+words[4]);
 					for (String wordd : words) {
 						int index = wordd.lastIndexOf("/");
-						tag = "t" + (Integer.parseInt(wordd.substring(index+1))+1);
+//						tag = "t" + (Integer.parseInt(wordd.substring(index+1))+1);
+						tag = wordd.substring(index+1);
+//						System.out.println(tag);
+						if (tagConvert.keySet().contains(tag.trim())){
+							tag=tagConvert.get(tag.trim());
+						}
+						else{
+							tagConvert.put(tag.trim(), "t"+tagCounter);
+							tag="t"+tagCounter;
+							tagCounter++;
+						}
 						word = wordd.substring(0, index);
 						
 //						System.out.println(tag+"-"word);
@@ -324,21 +341,18 @@ public class viterbi {
 					}
 					calculate("end", "</s>", tagPrev);
 					
-//					for (String key : transitions.keySet()) {
-//						System.out.println(key+"---"+transitions.get(key));
-////						transitions.put(key, transitions.get(key) / tagValues.get(tag));
-//					}
-
-//					for (String key : emissions.keySet()) {
-//						System.out.println(key+"---"+emissions.get(key));
-////						emissions.put(key, emissions.get(key) / tagValues.get(tag));
-//					}
-
-					// line = bf.readLine();
+					
 				} else {
 					tagPrev = "<s>";
 				}
-				// System.out.println(tagPrev + " " + tag + " " + word);
+//				tagValues.put("</s>", 1.0);
+				if (tagValues.keySet().contains("</s>")) {
+				double value = tagValues.get(tag);
+				tagValues.put("</s>", tagValues.get("</s>") + 1);
+				
+			} else {
+				tagValues.put("</s>", 1.0);
+			}
 				line = br.readLine();
 			}
 
@@ -346,7 +360,8 @@ public class viterbi {
 			br.close();
 		}
 		avg();
-		System.out.println(transitions);
+		System.out.println(tagConvert.keySet());
+		System.out.println(tagConvert.values());
 	}
 
 
