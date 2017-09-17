@@ -21,6 +21,7 @@ import java.util.ListIterator;
 import java.util.Random;
 
 import lbfgsb.LBFGSBException;
+import lbfgsb.Minimizer;
 //import lbfgsb.Minimizer;
 import lbfgsb.Result;
 
@@ -667,16 +668,19 @@ public class Main {
 
 		if(decide.equals("alpha")) { 
 			for(int i = 0; i < size; i++){
-				double value = (initialProbabilities.get("<s>|t" + (i+1))) + (emissionProbabilities.get("t" + (i+1) + "|" + word));
+				double value = (initialProbabilities.get("<s>|"+tagList.get(i))) + (emissionProbabilities.get(tagList.get(i) + "|" + word));
 				
+				
+				// we put only sum of initial value + emission
 				list.add(Math.exp(value));
 			}
 		}
 		else {
 			for(int i = 0; i < size; i++){
-				double value = (initialProbabilities.get("t" + (i+1) + "|</s>")) + (emissionProbabilities.get("t" + (i+1) + "|" + word));
+				double value = (initialProbabilities.get(tagList.get(i) + "|</s>"));// we do not add emission </s> | <end>   + (emissionProbabilities.get(tagList.get(i)+ "|" + word));
 				
-				list.add(Math.exp(value));
+				// we put only sum of initial value
+				list.add(value);
 			}
 		}
 		
@@ -768,23 +772,30 @@ public class Main {
 			
 			if(decide.equals("alpha")) {
 				
-				list.add(transitionProbabilities.get(tagList.get(j) + "|" + tagList.get(tagNumber)));
-				list.add(emissionProbabilities.get(tagList.get(tagNumber) + "|" + n.word));
-				list.add(emissionProbabilities.get(tagList.get(j) + "|" + n2.word));
+				sum = transitionProbabilities.get(tagList.get(j) + "|" + tagList.get(tagNumber)) + (emissionProbabilities.get(tagList.get(tagNumber) + "|" + n.word)) + n2.alpha.get(j);
+				list.add(sum);
+//				list.add(transitionProbabilities.get(tagList.get(j) + "|" + tagList.get(tagNumber)));
+//				list.add(emissionProbabilities.get(tagList.get(tagNumber) + "|" + n.word));
+//				list.add(emissionProbabilities.get(tagList.get(j) + "|" + n2.word));
 				
-				sum += (Math.exp(logSumOfExponentials(list)) + n2.alpha.get(j));
+//				sum += (Math.exp(logSumOfExponentials(list)) + n2.alpha.get(j));
 			}
 			else {
-				list.add(transitionProbabilities.get(tagList.get(tagNumber) + "|" + tagList.get(j)));
-				list.add(emissionProbabilities.get(tagList.get(tagNumber) + "|" + n.word));
-				list.add(emissionProbabilities.get(tagList.get(j) + "|" + n2.word));
 				
-				sum += Math.exp(logSumOfExponentials(list)) + n2.beta.get(j);
+				sum = transitionProbabilities.get(tagList.get(tagNumber) + "|" + tagList.get(j)) + (emissionProbabilities.get(tagList.get(j) + "|" + n2.word)) + n2.beta.get(j);
+				list.add(sum);
+				
+//				list.add(transitionProbabilities.get(tagList.get(tagNumber) + "|" + tagList.get(j)));
+//				list.add(emissionProbabilities.get(tagList.get(tagNumber) + "|" + n.word));
+//				list.add(emissionProbabilities.get(tagList.get(j) + "|" + n2.word));
+				
+//				sum += Math.exp(logSumOfExponentials(list)) + n2.beta.get(j);
 			}
 			
-			list.clear();
+			
 		}
-		
+		sum = Math.exp(logSumOfExponentials(list));
+		list.clear();
 		return sum;
 		
 	}
