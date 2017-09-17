@@ -57,8 +57,8 @@ public class Function implements DifferentiableFunction {
 	double allSumDenom = 0;
 
 	public double functionValue(double[] iterWeights) {
-		originalList.clear();
-		negativeList.clear();
+		//originalList.clear();
+		//negativeList.clear();
 		functionValue = 0.0;
 		for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) { // Iterate for all sentences
 			int counter = 0;
@@ -76,8 +76,8 @@ public class Function implements DifferentiableFunction {
 					}
 				}
 			}
-			originalList.add(sumNum);
-			negativeList.add(sumDenom);
+			//originalList.add(sumNum);
+			//negativeList.add(sumDenom);
 			double div = divide(sumNum, sumDenom);
 			if (Double.isFinite(div) && div != 0 && div > 0)
 				functionValue += Math.log(div); // Each sentence's scores added.
@@ -119,7 +119,7 @@ public class Function implements DifferentiableFunction {
 				double initialOrgScore = 0.0;
 				double initialNegScore = 0.0;
 				
-				int sentenceCounter = 0;
+				//int sentenceCounter = 0;
 				
 				for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
 					transOriginalNum = 0.0;
@@ -139,12 +139,12 @@ public class Function implements DifferentiableFunction {
 							
 							if(startStates.contains(n.stateNum)) {
 								
-								ArrayList<Double> list = new ArrayList<>();
+//								ArrayList<Double> list = new ArrayList<>();
+//								
+//								list.add(Main.emissionProbabilities.get(Main.tagList.get(i) + "|" + n.word));
+//								list.add(Main.initialProbabilities.get("<s>|" + Main.tagList.get(i)));
 								
-								list.add(Main.emissionProbabilities.get("t" + (i+1) + "|" + n.word));
-								list.add(Main.initialProbabilities.get("<s>|t" + (i+1)));
-								
-								initNum += Math.exp(Main.logSumOfExponentials(list));
+								initNum += Math.exp(Main.emissionProbabilities.get(Main.tagList.get(i) + "|" + n.word) + Main.initialProbabilities.get("<s>|" + Main.tagList.get(i)));
 								
 							}
 						}
@@ -158,13 +158,13 @@ public class Function implements DifferentiableFunction {
 						}
 					}
 
-					orgScore += divide(transOriginalNum, originalList.get(sentenceCounter));
-					negScore += divide(transNeighborNum, negativeList.get(sentenceCounter));
+					orgScore += transOriginalNum;
+					negScore += transNeighborNum;
 					
-					initialOrgScore += divide(initialOriginalNum, originalList.get(sentenceCounter));
-					initialNegScore += divide(initialNeighborNum, negativeList.get(sentenceCounter));
+					initialOrgScore += initialOriginalNum;
+					initialNegScore += initialNeighborNum;
 					
-					sentenceCounter++;
+					//sentenceCounter++;
 				}
 
 				String key = (Main.tagList.get(i) + "|" + Main.tagList.get(j));
@@ -174,42 +174,40 @@ public class Function implements DifferentiableFunction {
 				String initKey = "<s>|" + Main.tagList.get(i);
 				double initScore = initialOrgScore - initialNegScore;
 				gradInitialProbabilities.put(initKey, initScore);
-				// }
+				
+			}
 
 				/* re-estimation of emission probabilities NEW VERSION */
 				HashMap<String, Double> originalMap = new HashMap<>();
 				HashMap<String, Double> negativeMap = new HashMap<>();
-				double emissionOriginalDenom = 0.0;
-				double emissionNeighborDenom = 0.0;
-				sentenceCounter = 0;
+				
+				//sentenceCounter = 0;
 				for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
 					HashMap<String, Double> originalwordsNum = new HashMap<String, Double>();
 					HashMap<String, Double> neighborsWord = new HashMap<String, Double>();
 					for (int a = 0; a < globalMap.size(); a++) {
 						HashMap<Integer, Node> lattice = globalMap.get(a);
-						for (int k = 1; k < lattice.size() - 1; k++) {
+						for (int k = 1; k < lattice.size(); k++) {
 							Node node = lattice.get(k);
-							double num = 0;
-							for (int k1 : node.next) {
-								Node n2 = lattice.get(k1);
-								num += p(i, j, node, n2);
-							}
+							
+								double g = gamma(i,  node);
+							
 
 							if (a == 0) {
 								if (originalwordsNum.containsKey(node.word)) {
-									originalwordsNum.put(node.word, originalwordsNum.get(node.word) + num);
+									originalwordsNum.put(node.word, originalwordsNum.get(node.word) + g);
 
 								} else {
-									originalwordsNum.put(node.word, num);
+									originalwordsNum.put(node.word, g);
 								}
 								// emissionOriginalDenom += g;
 
 							} else {
 								if (neighborsWord.containsKey(node.word)) {
-									neighborsWord.put(node.word, neighborsWord.get(node.word) + num);
+									neighborsWord.put(node.word, neighborsWord.get(node.word) + g);
 
 								} else {
-									neighborsWord.put(node.word, num);
+									neighborsWord.put(node.word, g);
 								}
 								// emissionNeighborDenom += g;
 
@@ -220,7 +218,7 @@ public class Function implements DifferentiableFunction {
 					for (String s : originalwordsNum.keySet()) {
 						// double valOrg = divide(divide(originalwordsNum.get(s),
 						// emissionOriginalDenom), originalList.get(sentenceCounter));
-						double valOrg = divide(originalwordsNum.get(s), originalList.get(sentenceCounter));
+						double valOrg = originalwordsNum.get(s);
 
 						if (originalMap.containsKey(s)) {
 							originalMap.put(s, originalwordsNum.get(s) + valOrg);
@@ -231,7 +229,7 @@ public class Function implements DifferentiableFunction {
 
 						// double valNeg = divide(divide(neighborsWord.get(s), emissionNeighborDenom),
 						// negativeList.get(sentenceCounter));
-						double valNeg = divide(neighborsWord.get(s), negativeList.get(sentenceCounter));
+						double valNeg = neighborsWord.get(s);
 
 						if (negativeMap.containsKey(s)) {
 							negativeMap.put(s, negativeMap.get(s) + valNeg);
@@ -240,7 +238,6 @@ public class Function implements DifferentiableFunction {
 							negativeMap.put(s, valNeg);
 						}
 					}
-					sentenceCounter++;
 				}
 
 				Iterator<Entry<String, Double>> originals = originalMap.entrySet().iterator();
@@ -251,14 +248,14 @@ public class Function implements DifferentiableFunction {
 					Entry<String, Double> pairs2 = neighbors.next();
 					Double secondVal = (Double) pairs2.getValue();
 
-					key = Main.tagList.get(i) + "|" + pairs.getKey();
+					String key = Main.tagList.get(i) + "|" + pairs.getKey();
 
 					gradEmissionProbabilities.put(key, firstVal - secondVal);
 					totalEmission += (firstVal - secondVal);
 
 				}
 			}
-		}
+		
 
 		grad = Main.createGradArray(gradTransitionProbabilities, gradInitialProbabilities, gradEmissionProbabilities, Main.gradFeature2Index);
 
@@ -299,14 +296,15 @@ public class Function implements DifferentiableFunction {
 	 */
 	public double p(int i, int j, Node node, Node next) {
 		double num = 0.0;
+		
+		num = Main.transitionProbabilities.get(Main.tagList.get(i) + "|" + Main.tagList.get(j)) * Main.emissionProbabilities.get(Main.tagList.get(j) + "-" + next.word) * 
+				Math.exp((node.alpha.get(i))+(next.beta.get(j))) ;
+				
+//		list.add(Main.transitionProbabilities.get(Main.tagList.get(i) + "|" + Main.tagList.get(j)));
+//		list.add(Main.emissionProbabilities.get(Main.tagList.get(i) + "|" + node.word));
+//		list.add(Main.emissionProbabilities.get(Main.tagList.get(j) + "|" + next.word));
 
-		ArrayList<Double> list = new ArrayList<>();
-
-		list.add(Main.transitionProbabilities.get(Main.tagList.get(i) + "|" + Main.tagList.get(j)));
-		list.add(Main.emissionProbabilities.get(Main.tagList.get(i) + "|" + node.word));
-		list.add(Main.emissionProbabilities.get(Main.tagList.get(j) + "|" + next.word));
-
-		num = Math.exp(Main.logSumOfExponentials(list));
+		num = Math.exp(num);
 
 		return num;
 	}
@@ -314,14 +312,8 @@ public class Function implements DifferentiableFunction {
 	/** computes gamma(i, node) */
 
 	public double gamma(int i, Node node) {
-		double num, denom = 0.0;
-		num = (node.alpha.get(i)) * (node.beta.get(i));
-
-		// for (int k = 0; k < Main.tagSize; k++) {
-		// denom += (node.alpha.get(k)) * (node.beta.get(k));
-		// }
-
-		// return divide(num, denom);
+		double num = 0.0;
+		num = Math.exp((node.alpha.get(i)) + (node.beta.get(i)));
 
 		return num;
 	}
@@ -330,8 +322,6 @@ public class Function implements DifferentiableFunction {
 	public double divide(double n, double d) {
 		if (n == 0 || d == 0)
 			return 0;
-		// else if(!Double.isFinite(n) || !Double.isFinite(d))
-		// return 0;
 		else
 			return n / d;
 	}
