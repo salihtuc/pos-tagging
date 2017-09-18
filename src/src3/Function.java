@@ -53,9 +53,6 @@ public class Function implements DifferentiableFunction {
 		return fv;
 	}
 
-	double allSumNum = 0;
-	double allSumDenom = 0;
-
 	public double functionValue(double[] iterWeights) {
 		//originalList.clear();
 		//negativeList.clear();
@@ -68,11 +65,9 @@ public class Function implements DifferentiableFunction {
 				for (Node endState : Main.returnEndStates(lattice)) {
 					if (counter == 0) {
 						sumNum += sumListValues(endState.tagScores); // Original lattice's score
-						allSumNum += sumNum;
 						counter++;
 					} else {
 						sumDenom += sumListValues(endState.tagScores); // Negative samples' scores
-						allSumDenom += sumDenom;
 					}
 				}
 			}
@@ -99,8 +94,6 @@ public class Function implements DifferentiableFunction {
 	 */
 	public double[] gradient(double[] iterWeights) {
 
-		double totalTransition = 0;
-		double totalEmission = 0;
 		double[] grad = new double[iterWeights.length];
 
 		HashMap<String, Double> gradTransitionProbabilities = new HashMap<>();
@@ -119,6 +112,11 @@ public class Function implements DifferentiableFunction {
 				double initialOrgScore = 0.0;
 				double initialNegScore = 0.0;
 				
+				double initialOriginalNumEnd = 0.0;
+				double initialNeighborNumEnd = 0.0;
+				double initialOrgScoreEnd = 0.0;
+				double initialNegScoreEnd = 0.0;
+				
 				//int sentenceCounter = 0;
 				
 				for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
@@ -127,6 +125,8 @@ public class Function implements DifferentiableFunction {
 					for (int a = 0; a < globalMap.size(); a++) {
 						double num = 0;
 						double initNum = 0.0;
+						double initNumEnd = 0.0;
+						
 						HashMap<Integer, Node> lattice = globalMap.get(a);
 						ArrayList<Integer> startStates = Main.returnStartStates(lattice);
 
@@ -135,6 +135,16 @@ public class Function implements DifferentiableFunction {
 							for (int k1 : n.next) {
 								Node n2 = lattice.get(k1);
 								num += p(i, j, n, n2);
+								
+								if(n2.isEndState) {
+//									ArrayList<Double> list = new ArrayList<>();
+//									
+//									list.add(Main.emissionProbabilities.get(Main.tagList.get(j) + "|" + n2.word));
+//									list.add(Main.initialProbabilities.get(Main.tagList.get(j) + "|</s>"));
+									
+									initNumEnd += Math.exp(Main.initialProbabilities.get(Main.tagList.get(j) + "|</s>"));
+								}
+
 							}
 							
 							if(startStates.contains(n.stateNum)) {
@@ -150,11 +160,22 @@ public class Function implements DifferentiableFunction {
 						}
 
 						if (a == 0) {
-							transOriginalNum += num;
-							initialOriginalNum += initNum;
+//							transOriginalNum += Math.log(num);
+//							initialOriginalNum += Math.log(initNum);
+//							initialOriginalNumEnd += Math.log(initNumEnd);
+							
+							transOriginalNum += (num);
+							initialOriginalNum += (initNum);
+							initialOriginalNumEnd += (initNumEnd);
 						} else {
-							transNeighborNum += num;
-							initialNeighborNum += initNum;
+							
+							transNeighborNum += (num);
+							initialNeighborNum += (initNum);
+							initialNeighborNumEnd += (initNumEnd);
+							
+//							transNeighborNum += Math.log(num);
+//							initialNeighborNum += Math.log(initNum);
+//							initialNeighborNumEnd += Math.log(initNumEnd);
 						}
 					}
 
@@ -164,16 +185,35 @@ public class Function implements DifferentiableFunction {
 					initialOrgScore += initialOriginalNum;
 					initialNegScore += initialNeighborNum;
 					
+					initialOrgScoreEnd += initialOriginalNumEnd;
+					initialNegScoreEnd += initialNeighborNumEnd;
+					
 					//sentenceCounter++;
 				}
 
 				String key = (Main.tagList.get(i) + "|" + Main.tagList.get(j));
-				double score = orgScore - negScore;
+				double score = Math.log(orgScore) - Math.log(negScore);
 				gradTransitionProbabilities.put(key, score);
 				
 				String initKey = "<s>|" + Main.tagList.get(i);
-				double initScore = initialOrgScore - initialNegScore;
+				double initScore = Math.log(initialOrgScore) - Math.log(initialNegScore);
 				gradInitialProbabilities.put(initKey, initScore);
+				
+				String initKeyEnd = Main.tagList.get(j) + "|</s>";
+				double initScoreEnd = Math.log(initialOrgScoreEnd) - Math.log(initialNegScoreEnd);
+				gradInitialProbabilities.put(initKeyEnd, initScoreEnd);
+				
+//				String key = (Main.tagList.get(i) + "|" + Main.tagList.get(j));
+//				double score = orgScore - negScore;
+//				gradTransitionProbabilities.put(key, score);
+//				
+//				String initKey = "<s>|" + Main.tagList.get(i);
+//				double initScore = initialOrgScore - initialNegScore;
+//				gradInitialProbabilities.put(initKey, initScore);
+//				
+//				String initKeyEnd = Main.tagList.get(j) + "|</s>";
+//				double initScoreEnd = initialOrgScoreEnd - initialNegScoreEnd;
+//				gradInitialProbabilities.put(initKeyEnd, initScoreEnd);
 				
 			}
 
@@ -250,8 +290,7 @@ public class Function implements DifferentiableFunction {
 
 					String key = Main.tagList.get(i) + "|" + pairs.getKey();
 
-					gradEmissionProbabilities.put(key, firstVal - secondVal);
-					totalEmission += (firstVal - secondVal);
+					gradEmissionProbabilities.put(key, Math.log(firstVal) - Math.log(secondVal));
 
 				}
 			}
@@ -297,14 +336,18 @@ public class Function implements DifferentiableFunction {
 	public double p(int i, int j, Node node, Node next) {
 		double num = 0.0;
 		
-		num = Main.transitionProbabilities.get(Main.tagList.get(i) + "|" + Main.tagList.get(j)) * Main.emissionProbabilities.get(Main.tagList.get(j) + "-" + next.word) * 
-				Math.exp((node.alpha.get(i))+(next.beta.get(j))) ;
-				
+//		num = Main.transitionProbabilities.get(Main.tagList.get(i) + "|" + Main.tagList.get(j)) * Main.emissionProbabilities.get(Main.tagList.get(j) + "|" + next.word) * 
+//				Math.exp(node.alpha.get(i) + next.beta.get(j)) ;
+		
+		num = Math.exp(Main.transitionProbabilities.get(Main.tagList.get(i) + "|" + Main.tagList.get(j)) + Main.emissionProbabilities.get(Main.tagList.get(j) + "|" + next.word) + 
+		(node.alpha.get(i))+(next.beta.get(j))) ;		
+
+		
 //		list.add(Main.transitionProbabilities.get(Main.tagList.get(i) + "|" + Main.tagList.get(j)));
 //		list.add(Main.emissionProbabilities.get(Main.tagList.get(i) + "|" + node.word));
 //		list.add(Main.emissionProbabilities.get(Main.tagList.get(j) + "|" + next.word));
 
-		num = Math.exp(num);
+//		num = Math.exp(num);
 
 		return num;
 	}
@@ -313,7 +356,8 @@ public class Function implements DifferentiableFunction {
 
 	public double gamma(int i, Node node) {
 		double num = 0.0;
-		num = Math.exp((node.alpha.get(i)) + (node.beta.get(i)));
+//		num = (node.alpha.get(i)) + (node.beta.get(i));
+		num = Math.exp(node.alpha.get(i) + node.beta.get(i));
 
 		return num;
 	}
@@ -339,13 +383,13 @@ public class Function implements DifferentiableFunction {
 
 	public double sumListValues(List<Double> list) {
 
-		double sum = 0.0;
+//		double sum = 0.0;
+//
+//		for (double d : list) {
+//			sum += (d);
+//		}
 
-		for (double d : list) {
-			sum += (d);
-		}
-
-		return (sum);
+		return Math.exp(Main.logSumOfExponentials((ArrayList<Double>)list));
 	}
 
 }
