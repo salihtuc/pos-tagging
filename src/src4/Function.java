@@ -142,7 +142,7 @@ public class Function implements DifferentiableFunction {
 								Node n2 = lattice.get(k1);
 								values.add(p(i, j, n, n2));  //calculate transition i-j
 								for (int k2 = 0; k2 < Main.tagSize; k2++) {
-									valuesDenom.add(p(i, 42, n, n2));  //calculate transition i-k
+									valuesDenom.add(p(i, k2, n, n2));  //calculate transition i-k
 								}
 							}
 
@@ -167,7 +167,7 @@ public class Function implements DifferentiableFunction {
 					}
 
 					orgScore += divide(transOriginalNum, transOriginalDenom);  //divide for all sentences transOriginalNum / transOriginalDenom
-					negScore += divide(transNeighborNum, transNeighborDenom);  //divide for all negatif sentences transNeighborNum / transNeighborDenom
+					negScore += divide(transNeighborNum, transNeighborDenom);  //divide for all negative sentences transNeighborNum / transNeighborDenom
 
 				}
 
@@ -329,9 +329,7 @@ public class Function implements DifferentiableFunction {
 							} else {
 								originalwordsNum.put(node.word, g);
 							}
-
 							listNum.add(g);
-							emissionOriginalDenom += Main.logSumOfExponentials(listNum);
 
 						} else {
 							if (neighborsWord.containsKey(node.word)) {
@@ -347,13 +345,11 @@ public class Function implements DifferentiableFunction {
 							}
 
 							listDenom.add(g);
-							emissionNeighborDenom += Main.logSumOfExponentials(listDenom);
-
 						}
-
 					}
 				}
-
+				emissionOriginalDenom += Main.logSumOfExponentials(listNum);
+				emissionNeighborDenom += Main.logSumOfExponentials(listDenom);
 				listNum.clear();
 				listDenom.clear();
 				for (String s : originalwordsNum.keySet()) {
