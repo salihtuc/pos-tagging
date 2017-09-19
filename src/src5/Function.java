@@ -449,9 +449,9 @@ public class Function implements DifferentiableFunction {
 		// *
 		// Math.exp(node.alpha.get(i) + next.beta.get(j)) ;
 
-		num = (Main.transitionProbabilities.get(Main.tagList.get(i) + "|" + Main.tagList.get(j))
-				+ Main.emissionProbabilities.get(Main.tagList.get(j) + "|" + next.word) + node.alpha.get(i)
-				+ next.beta.get(j));
+		num = Math.log(Math.exp(Main.transitionProbabilities.get(Main.tagList.get(i) + "|" + Main.tagList.get(j))
+				+ Main.emissionProbabilities.get(Main.tagList.get(j) + "|" + next.word)) *node.alpha.get(i)
+				* next.beta.get(j));
 
 		double denom = sumListValues(node.tagScores);
 
@@ -462,7 +462,7 @@ public class Function implements DifferentiableFunction {
 
 	public double gamma(int i, Node node) {
 		double num = 0.0;
-		num = (node.alpha.get(i) + node.beta.get(i));
+		num = Math.log(node.alpha.get(i)) + Math.log(node.beta.get(i));
 		double denom = sumListValues(node.tagScores);
 
 		return divide(num, denom);
