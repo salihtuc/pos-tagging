@@ -275,15 +275,15 @@ public class Main {
 		tagList.add("t1");
 		tagList.add("t2");
 		tagList.add("t3");
-//		tagList.add("t4");
-//		tagList.add("t5");
-//		tagList.add("t6");
-//		tagList.add("t7");
-//		tagList.add("t8");
-//		tagList.add("t9");
-//		tagList.add("t10");
-//		tagList.add("t11");
-//		tagList.add("t12");
+		tagList.add("t4");
+		tagList.add("t5");
+		tagList.add("t6");
+		tagList.add("t7");
+		tagList.add("t8");
+		tagList.add("t9");
+		tagList.add("t10");
+		tagList.add("t11");
+		tagList.add("t12");
 		// tagList.add("<s>");
 		// tagList.add("</s>");
 
