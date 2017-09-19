@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -73,19 +74,39 @@ public class Main {
 			while ((line = br.readLine()) != null) {
 
 				if (line.split(" ").length > 2) {
-					sentences.add(start + line.toLowerCase());
-					// sentences.add(line.toLowerCase());
+					// sentences.add(start + line.toLowerCase());
+					sentences.add(line.toLowerCase());
 
-					allWords.addAll(Arrays.asList((line.toLowerCase()).split(" ")));
-					// allWords.addAll(Arrays.asList((line.toLowerCase()).split(" ")));
+					allWords.addAll(Arrays.asList((line.toLowerCase()).trim().split(" ")));
+					// allWords.addAll(Arrays.asList((line.toLowerCase()).split("
+					// ")));
 				}
 
 			}
+			// System.out.println(allWords);
+			for (int i = 0; i < allWords.size(); i++) {
+				if (Collections.frequency(allWords, allWords.get(i)) == 1) {
+					allWords.set(i, "unknown");
+				}
+			}
+			int sum = 0;
+			for (int j = 0; j < sentences.size(); j++) {
+				String sentence = sentences.get(j);
+				int count = sentence.split(" ").length;
+				String modifiedSentence = "";
+				for (int k = sum; k < sum + count; k++) {
+					modifiedSentence += allWords.get(k) + " ";
 
-			// allWords.add("<end>");
+				}
+				sum += count;
+				sentences.set(j, "<start> " + modifiedSentence);
+				// System.out.println("<start> "+modifiedSentence);
+			}
+//			 allWords.add("<end>");
 			uniqueValues = new HashSet<>(allWords);
 			allWords.clear();
 			allWords.addAll(uniqueValues);
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
