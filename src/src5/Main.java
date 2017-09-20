@@ -760,10 +760,10 @@ public class Main {
 				double finalResult = 0;
 				for (int counter : neighbors) {
 					Node n2 = latticeMap.get(counter);
-					finalResult += calculate(n, n2, i, decide);
+					finalResult += Math.exp(calculate(n, n2, i, decide));
 
 				}
-				n.alpha.add(Math.exp(finalResult));
+				n.alpha.add((finalResult));
 
 			}
 			return n.alpha;
@@ -775,10 +775,10 @@ public class Main {
 				double finalResult = 0;
 				for (int counter : neighbors) {
 					Node n2 = latticeMap.get(counter);
-					finalResult += calculate(n, n2, i, decide);
+					finalResult += Math.exp(calculate(n, n2, i, decide));
 
 				}
-				n.beta.add(i, Math.exp(finalResult));
+				n.beta.add((finalResult));
 			}
 			return n.beta;
 		}
@@ -792,27 +792,17 @@ public class Main {
 
 			if (decide.equals("alpha")) {
 
-				sum = Math.log(Math.exp(transitionProbabilities.get(tagList.get(j) + "|" + tagList.get(tagNumber))
-						+ (emissionProbabilities.get(tagList.get(tagNumber) + "|" + n.word))) * n2.alpha.get(j));
-				list.add(sum);
-				// list.add(transitionProbabilities.get(tagList.get(j) + "|" +
-				// tagList.get(tagNumber)));
-				// list.add(emissionProbabilities.get(tagList.get(tagNumber) + "|" + n.word));
-				// list.add(emissionProbabilities.get(tagList.get(j) + "|" + n2.word));
-
-				// sum += (Math.exp(logSumOfExponentials(list)) + n2.alpha.get(j));
-			} else {
-
-				sum =  Math.log(Math.exp(transitionProbabilities.get(tagList.get(tagNumber) + "|" + tagList.get(j))
-						+ (emissionProbabilities.get(tagList.get(j) + "|" + n2.word)))*+ n2.beta.get(j));
+				sum = transitionProbabilities.get(tagList.get(j) + "|" + tagList.get(tagNumber))
+						+ (emissionProbabilities.get(tagList.get(tagNumber) + "|" + n.word)) + Math.log(n2.alpha.get(j));
 				list.add(sum);
 
-				// list.add(transitionProbabilities.get(tagList.get(tagNumber) + "|" +
-				// tagList.get(j)));
-				// list.add(emissionProbabilities.get(tagList.get(tagNumber) + "|" + n.word));
-				// list.add(emissionProbabilities.get(tagList.get(j) + "|" + n2.word));
+			} 
+			else {
 
-				// sum += Math.exp(logSumOfExponentials(list)) + n2.beta.get(j);
+				sum =  transitionProbabilities.get(tagList.get(tagNumber) + "|" + tagList.get(j))
+						+ (emissionProbabilities.get(tagList.get(j) + "|" + n2.word)) + Math.log(n2.beta.get(j));
+				list.add(sum);
+
 			}
 
 		}
