@@ -7,9 +7,11 @@
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,6 +20,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Properties;
 import java.util.Random;
 
 import lbfgsb.LBFGSBException;
@@ -54,27 +57,78 @@ public class Main {
 
 	public static double[] tagFeatureWeights = null; // Feature sized weight array that we use in LBFGS-B
 	public static double[] tagFeatureGradients = null;
+	
+	public static String inputFile;
+	public static String outputFile;
+	public static String initialFile;
+	
+	public static double initialValue=0.0;
+	public static int randomOption=0;
 
 	public static void main(String[] args) {
 
 		// Time operations. Just using for information.
 		long startTime = System.nanoTime();
+		
+		// read from params file
+		
+	      Properties prop = new Properties();
+	        InputStream input = null;
+	        String paramsFile;
+	        if(args.length>0) {
+	            paramsFile = args[0];
+	        }
+	        else {
+	            paramsFile = "params.properties";
+	        }
+
+	        //get params
+	        try {
+
+	            input = new FileInputStream(paramsFile);
+
+	            // load a properties file
+	            prop.load(input);
+
+	            // get the property values
+	            inputFile=prop.getProperty("inputFile");
+	            outputFile=prop.getProperty("outputFile");
+	            if (prop.getProperty("initialFile")!= null){
+	            	initialFile=prop.getProperty("initialFile");
+	            }
+	            initialValue=Double.parseDouble(prop.getProperty("initialValue"));
+	        	randomOption=Integer.parseInt(prop.getProperty("randomOption"));
+	        	Function.LAMBDA_EM=Double.parseDouble(prop.getProperty("LAMBDA"));
+
+	        } catch (IOException ex) {
+	            ex.printStackTrace();
+	        } finally {
+	            if (input != null) {
+	                try {
+	                    input.close();
+	                } catch (IOException e) {
+	                    e.printStackTrace();
+	                }
+	            }
+	        }
+		
+		
 		try {
-			pw = new PrintWriter(new File("outp.txt"));
+			pw = new PrintWriter(new File(outputFile));
 		} catch (FileNotFoundException e1) {
 			e1.printStackTrace();
 		}
 
 		// try (BufferedReader br = new BufferedReader(new
 		// FileReader("PennCorpus12.txt"))) {
-		try (BufferedReader br = new BufferedReader(new FileReader("input.txt"))) {
+		try (BufferedReader br = new BufferedReader(new FileReader(inputFile))) {
 			String start = "<start> ";
 			String line;
 
 			while ((line = br.readLine()) != null) {
 
 				if (line.split(" ").length > 2) {
-					// sentences.add(start + line.toLowerCase());
+					 sentences.add(start + line.toLowerCase());
 					sentences.add(line.toLowerCase());
 
 					allWords.addAll(Arrays.asList((line.toLowerCase()).trim().split(" ")));
@@ -83,25 +137,25 @@ public class Main {
 				}
 
 			}
-			// System.out.println(allWords);
-			for (int i = 0; i < allWords.size(); i++) {
-				if (Collections.frequency(allWords, allWords.get(i)) == 1) {
-					allWords.set(i, "unknown");
-				}
-			}
-			int sum = 0;
-			for (int j = 0; j < sentences.size(); j++) {
-				String sentence = sentences.get(j);
-				int count = sentence.split(" ").length;
-				String modifiedSentence = "";
-				for (int k = sum; k < sum + count; k++) {
-					modifiedSentence += allWords.get(k) + " ";
-
-				}
-				sum += count;
-				sentences.set(j, "<start> " + modifiedSentence);
-				// System.out.println("<start> "+modifiedSentence);
-			}
+//			// System.out.println(allWords);
+//			for (int i = 0; i < allWords.size(); i++) {
+//				if (Collections.frequency(allWords, allWords.get(i)) == 1) {
+//					allWords.set(i, "unknown");
+//				}
+//			}
+//			int sum = 0;
+//			for (int j = 0; j < sentences.size(); j++) {
+//				String sentence = sentences.get(j);
+//				int count = sentence.split(" ").length;
+//				String modifiedSentence = "";
+//				for (int k = sum; k < sum + count; k++) {
+//					modifiedSentence += allWords.get(k) + " ";
+//
+//				}
+//				sum += count;
+//				sentences.set(j, "<start> " + modifiedSentence);
+//				// System.out.println("<start> "+modifiedSentence);
+//			}
 //			 allWords.add("<end>");
 			uniqueValues = new HashSet<>(allWords);
 			allWords.clear();
@@ -116,14 +170,16 @@ public class Main {
 		// Initialization of features and tags.
 
 		fillTagList(); // Creating tags (filling tagList)
-		fillTransitionMap(); // Creating transitionProbabilities map
-		fillInitialMap();
+		fillTransitionMap(initialValue,randomOption); // Creating transitionProbabilities map
+		fillInitialMap(initialValue,randomOption);
 
 		for (String sentence : sentences)
-			fillEmissionMap(sentence); // Creating emissionProbabilities map
+			fillEmissionMap(sentence,initialValue,randomOption); // Creating emissionProbabilities map
 
 		// fillEmissionMap("<end>");
-		fillInitialFromFile("initialProb.txt");
+		
+		if (initialFile!=null)
+		fillInitialFromFile(initialFile);
 
 		tagFeatureWeights = createWeightsArray(transitionProbabilities, initialProbabilities, emissionProbabilities,
 				gradFeature2Index);
@@ -160,6 +216,8 @@ public class Main {
 
 			}
 		}
+		
+	
 
 		/* LBFGS-B part */
 		Minimizer alg = new Minimizer();
@@ -257,13 +315,14 @@ public class Main {
 		}
 	}
 
-	private static void fillInitialMap() {
-		double value = 0.000000001;
+	private static void fillInitialMap(double value, int decide) {
+		Random r = new Random();
 
 		for (int i = 0; i < tagList.size(); i++) {
 			String key1 = "<s>|" + tagList.get(i);
 			String key2 = tagList.get(i) + "|</s>";
-
+			if (decide==1)
+				 value = (r.nextInt(100) / 10000.0);
 			initialProbabilities.put(key1, value);
 			initialProbabilities.put(key2, value);
 		}
@@ -288,15 +347,16 @@ public class Main {
 		tagSize = tagList.size();
 	}
 
-	private static void fillTransitionMap() {
+	private static void fillTransitionMap(double value,int decide) {
 
 		// double value = 1.0 / (tagSize); // For uniform values
 		Random r = new Random();
-		double value = 0.000000001; // For zero values
+//		value = 0.1; // For zero values
 
 		for (int i = 0; i < (tagSize); i++) {
 			for (int j = 0; j < (tagSize); j++) {
-				// double value = (r.nextInt(100) / 10000.0);
+				if (decide==1)
+				 value = (r.nextInt(100) / 10000.0);
 
 				String key = (tagList.get(i) + "|" + tagList.get(j));
 
@@ -306,15 +366,16 @@ public class Main {
 		}
 	}
 
-	private static void fillEmissionMap(String sentence) {
+	private static void fillEmissionMap(String sentence,double value,int decide) {
 		words = new ArrayList<String>(Arrays.asList(sentence.split(" ")));
 		// double value = 1.0 / (allWords.size()); // For uniform values
-		double value = 0.000000001; // For zero values
+//		double value = 0.1; // For zero values
 		Random r = new Random();
 
 		for (int i = 0; i < tagSize; i++) {
 			for (String word : words) {
-				// double value = (r.nextInt(100) / 10000.0);
+				if (decide==1)
+				  value = (r.nextInt(100) / 10000.0);
 				String key = tagList.get(i) + "|" + word;
 				if (!emissionProbabilities.containsKey(key)) {
 					emissionProbabilities.put(key, value);
@@ -322,30 +383,6 @@ public class Main {
 			}
 		}
 	}
-
-	// protected static double[] createWeightsArray(HashMap<String, Double>
-	// transitionMap, HashMap<String, Double> initialMap, HashMap<String, Integer>
-	// gradFeature2Index) {
-	// int size = transitionMap.size() + initialMap.size();
-	//
-	// double[] weights = new double[size];
-	//
-	// int i = 0;
-	// for (String s : transitionMap.keySet()) {
-	// weights[i] = transitionMap.get(s);
-	//
-	// gradFeature2Index.put(s, i);
-	// i++;
-	// }
-	// for (String s : initialMap.keySet()) {
-	// weights[i] = initialMap.get(s);
-	//
-	// gradFeature2Index.put(s, i);
-	// i++;
-	// }
-	//
-	// return weights;
-	// }
 
 	// SAME FUNCTION WITH EMISSION PROBS
 	protected static double[] createWeightsArray(HashMap<String, Double> transitionMap,
@@ -688,15 +725,15 @@ public class Main {
 
 		if (decide.equals("alpha")) {
 			for (int i = 0; i < size; i++) {
-				double value = (initialProbabilities.get("<s>|" + tagList.get(i)))
-						+ (emissionProbabilities.get(tagList.get(i) + "|" + word));
+				double value = Math.exp(initialProbabilities.get("<s>|" + tagList.get(i))
+						+ (emissionProbabilities.get(tagList.get(i) + "|" + word)));
 
 				// we put only sum of initial value + emission
 				list.add(value);
 			}
 		} else {
 			for (int i = 0; i < size; i++) {
-				double value = (initialProbabilities.get(tagList.get(i) + "|</s>"));// we do not add emission </s> |
+				double value = Math.exp(initialProbabilities.get(tagList.get(i) + "|</s>"));// we do not add emission </s> |
 																					// <end> +
 																					// (emissionProbabilities.get(tagList.get(i)+
 																					// "|" + word));
@@ -758,10 +795,10 @@ public class Main {
 				double finalResult = 0;
 				for (int counter : neighbors) {
 					Node n2 = latticeMap.get(counter);
-					finalResult += calculate(n, n2, i, decide);
+					finalResult += Math.exp(calculate(n, n2, i, decide));
 
 				}
-				n.alpha.add(finalResult);
+				n.alpha.add((finalResult));
 
 			}
 			return n.alpha;
@@ -773,10 +810,10 @@ public class Main {
 				double finalResult = 0;
 				for (int counter : neighbors) {
 					Node n2 = latticeMap.get(counter);
-					finalResult += calculate(n, n2, i, decide);
+					finalResult += Math.exp(calculate(n, n2, i, decide));
 
 				}
-				n.beta.add(i, finalResult);
+				n.beta.add((finalResult));
 			}
 			return n.beta;
 		}
@@ -791,26 +828,16 @@ public class Main {
 			if (decide.equals("alpha")) {
 
 				sum = transitionProbabilities.get(tagList.get(j) + "|" + tagList.get(tagNumber))
-						+ (emissionProbabilities.get(tagList.get(tagNumber) + "|" + n.word)) + n2.alpha.get(j);
-				list.add(sum);
-				// list.add(transitionProbabilities.get(tagList.get(j) + "|" +
-				// tagList.get(tagNumber)));
-				// list.add(emissionProbabilities.get(tagList.get(tagNumber) + "|" + n.word));
-				// list.add(emissionProbabilities.get(tagList.get(j) + "|" + n2.word));
-
-				// sum += (Math.exp(logSumOfExponentials(list)) + n2.alpha.get(j));
-			} else {
-
-				sum = transitionProbabilities.get(tagList.get(tagNumber) + "|" + tagList.get(j))
-						+ (emissionProbabilities.get(tagList.get(j) + "|" + n2.word)) + n2.beta.get(j);
+						+ (emissionProbabilities.get(tagList.get(tagNumber) + "|" + n.word)) + Math.log(n2.alpha.get(j));
 				list.add(sum);
 
-				// list.add(transitionProbabilities.get(tagList.get(tagNumber) + "|" +
-				// tagList.get(j)));
-				// list.add(emissionProbabilities.get(tagList.get(tagNumber) + "|" + n.word));
-				// list.add(emissionProbabilities.get(tagList.get(j) + "|" + n2.word));
+			} 
+			else {
 
-				// sum += Math.exp(logSumOfExponentials(list)) + n2.beta.get(j);
+				sum =  transitionProbabilities.get(tagList.get(tagNumber) + "|" + tagList.get(j))
+						+ (emissionProbabilities.get(tagList.get(j) + "|" + n2.word)) + Math.log(n2.beta.get(j));
+				list.add(sum);
+
 			}
 
 		}
@@ -825,7 +852,7 @@ public class Main {
 		ArrayList<Double> scores = new ArrayList<>();
 
 		for (int i = 0; i < tagSize; i++) {
-			double score = ((alpha.get(i)) + (beta.get(i)));
+			double score = (Math.log(alpha.get(i)) + Math.log(beta.get(i)));
 
 			scores.add(i, score);
 		}

@@ -20,9 +20,9 @@ public class Function implements DifferentiableFunction {
 
 	// -------------------------------------- LBFGS-B
 	// ---------------------------------------------------------
-
+	
 	public double functionValue = 0.0;
-	public static final double LAMBDA_EM = 1;
+	public static  double LAMBDA_EM = 1;
 	public int iterCount = 0;
 	ArrayList<Double> originalList = new ArrayList<>();
 	ArrayList<Double> negativeList = new ArrayList<>();
@@ -197,11 +197,11 @@ public class Function implements DifferentiableFunction {
 			double initOriginalEndDenom = 0.0;
 			double initNeighborEndDenom = 0.0;
 
-			double initorgScore = 0.0;
-			double initnegScore = 0.0;
+			double initOrgScore = 0.0;
+			double initNegScore = 0.0;
 
-			double initorgScoreEnd = 0.0;
-			double initnegScoreEnd = 0.0;
+			double initOrgScoreEnd = 0.0;
+			double initNegScoreEnd = 0.0;
 
 			for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
 				initOriginalNum = 0.0;
@@ -281,22 +281,24 @@ public class Function implements DifferentiableFunction {
 					}
 				}
 
-				initorgScore += divide(initOriginalNum, initOriginalDenom);
-				initnegScore += divide(initNeighborNum, initNeighborDenom);
+				initOrgScore += divide(initOriginalNum, initOriginalDenom);
+				initNegScore += divide(initNeighborNum, initNeighborDenom);
 
-				initorgScoreEnd += divide(initOriginalEndNum, initOriginalEndDenom);
-				initnegScoreEnd += divide(initNeighborEndNum, initNeighborEndDenom);
+				initOrgScoreEnd += divide(initOriginalEndNum, initOriginalEndDenom);
+				initNegScoreEnd += divide(initNeighborEndNum, initNeighborEndDenom);
 			}
 
 			String initKey = "<s>|" + Main.tagList.get(i);
-			double initScore = initorgScore - initnegScore;
+			double initScore = initOrgScore - initNegScore;
 			gradInitialProbabilities.put(initKey, initScore);
 
 			String initKeyEnd = Main.tagList.get(i) + "|</s>";
-			double initScoreEnd = initorgScoreEnd - initnegScoreEnd;
+			double initScoreEnd = initOrgScoreEnd - initNegScoreEnd;
 			gradInitialProbabilities.put(initKeyEnd, initScoreEnd);
 
+			
 			/* re-estimation of emission probabilities NEW VERSION */
+			
 			HashMap<String, Double> originalMap = new HashMap<>();
 			HashMap<String, Double> negativeMap = new HashMap<>();
 
@@ -360,12 +362,12 @@ public class Function implements DifferentiableFunction {
 						ArrayList<Double> list = new ArrayList<>();
 
 						list.add(originalMap.get(s));
-						list.add(divide(valOrg, emissionOriginalDenom));
+						list.add((valOrg - emissionOriginalDenom));
 
 						originalMap.put(s, Main.logSumOfExponentials(list));
 
 					} else {
-						originalMap.put(s, divide(valOrg, emissionOriginalDenom));
+						originalMap.put(s, (valOrg - emissionOriginalDenom));
 					}
 
 					double valNeg = neighborsWord.get(s);
@@ -375,12 +377,12 @@ public class Function implements DifferentiableFunction {
 						ArrayList<Double> list = new ArrayList<>();
 
 						list.add(negativeMap.get(s));
-						list.add(divide(valNeg, emissionNeighborDenom));
+						list.add((valNeg - emissionNeighborDenom));
 
 						negativeMap.put(s, Main.logSumOfExponentials(list));
 
 					} else {
-						negativeMap.put(s, divide(valNeg, emissionNeighborDenom));
+						negativeMap.put(s, (valNeg - emissionNeighborDenom));
 					}
 				}
 				originalwordsNum.clear();
@@ -449,23 +451,23 @@ public class Function implements DifferentiableFunction {
 		// *
 		// Math.exp(node.alpha.get(i) + next.beta.get(j)) ;
 
-		num = (Main.transitionProbabilities.get(Main.tagList.get(i) + "|" + Main.tagList.get(j))
-				+ Main.emissionProbabilities.get(Main.tagList.get(j) + "|" + next.word) + node.alpha.get(i)
-				+ next.beta.get(j));
+		num = Main.transitionProbabilities.get(Main.tagList.get(i) + "|" + Main.tagList.get(j))
+				+ Main.emissionProbabilities.get(Main.tagList.get(j) + "|" + next.word) + Math.log(node.alpha.get(i))
+				+ Math.log(next.beta.get(j));
 
-		double denom = sumListValues(node.tagScores);
+		double denom = sumListValuesLog(node.tagScores);
 
-		return divide(num, denom);
+		return (num - denom);
 	}
 
 	/** computes gamma(i, node) */
 
 	public double gamma(int i, Node node) {
 		double num = 0.0;
-		num = (node.alpha.get(i) + node.beta.get(i));
-		double denom = sumListValues(node.tagScores);
+		num = Math.log(node.alpha.get(i)) + Math.log(node.beta.get(i));
+		double denom = sumListValuesLog(node.tagScores);
 
-		return divide(num, denom);
+		return (num - denom);
 	}
 
 	/** divides two doubles. (0 / 0 = 0!) && (1 / 0 = 0!) */
@@ -489,13 +491,12 @@ public class Function implements DifferentiableFunction {
 
 	public double sumListValues(List<Double> list) {
 
-		// double sum = 0.0;
-		//
-		// for (double d : list) {
-		// sum += (d);
-		// }
-
 		return Math.exp(Main.logSumOfExponentials((ArrayList<Double>) list));
+	}
+
+	public double sumListValuesLog(List<Double> list) {
+
+		return Main.logSumOfExponentials((ArrayList<Double>) list);
 	}
 
 }
