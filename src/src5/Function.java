@@ -22,7 +22,6 @@ public class Function implements DifferentiableFunction {
 	// ---------------------------------------------------------
 
 	public double functionValue = 0.0;
-//	public static final double LAMBDA_EM = Math.pow(10, -(1.0/3.0));
 	public static final double LAMBDA_EM = 1.0;
 			
 	public int iterCount = 0;
@@ -31,9 +30,6 @@ public class Function implements DifferentiableFunction {
 
 	@Override
 	public FunctionValues getValues(double[] point) {
-
-		// System.out.println("Points:");
-		// Main.printDoubleArray(point);
 
 		if (iterCount != 0) {
 			Main.updateProbabilities(point, Main.gradFeature2Index);
@@ -83,8 +79,7 @@ public class Function implements DifferentiableFunction {
 					}
 				}
 			}
-			// originalList.add(sumNum);
-			// negativeList.add(sumDenom);
+
 			double div = divide(sumNum, sumDenom);
 			if (Double.isFinite(div) && div != 0 && div > 0)
 				functionValue += Math.log(div); // Each sentence's scores added.
@@ -113,9 +108,9 @@ public class Function implements DifferentiableFunction {
 		HashMap<String, Double> gradEmissionProbabilities = new HashMap<>();
 
 		for (int i = 0; i < Main.tagSize; i++) {
-
-			/* re-estimation of transition probabilities NEW VERSION */
 			for (int j = 0; j < Main.tagSize; j++) {
+				
+				/* Variables for transition */
 				double transOriginalNum = 0.0;
 				double transNeighborNum = 0.0;
 
@@ -127,29 +122,90 @@ public class Function implements DifferentiableFunction {
 
 				ArrayList<Double> values = new ArrayList<>();
 				ArrayList<Double> valuesDenom = new ArrayList<>();
+				
+				/* Variables for initials */
+				ArrayList<Double> valuesInit = new ArrayList<>();
+				ArrayList<Double> valuesInitDenom = new ArrayList<>();
+
+				ArrayList<Double> valuesInitEnd = new ArrayList<>();
+				ArrayList<Double> valuesInitEndDenom = new ArrayList<>();
+				
+				double initOriginalNum = 0.0;
+				double initNeighborNum = 0.0;
+
+				double initOriginalDenom = 0.0;
+				double initNeighborDenom = 0.0;
+
+				double initOriginalEndNum = 0.0;
+				double initNeighborEndNum = 0.0;
+
+				double initOriginalEndDenom = 0.0;
+				double initNeighborEndDenom = 0.0;
+
+				double initOrgScore = 0.0;
+				double initNegScore = 0.0;
+
+				double initOrgScoreEnd = 0.0;
+				double initNegScoreEnd = 0.0;
 
 				for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
+					
+					/* Variables for transition */
 					transOriginalNum = 0.0;
 					transNeighborNum = 0.0;
 
 					transOriginalDenom = 0.0;
 					transNeighborDenom = 0.0;
+					
+					/* Variables for initial */
+					initOriginalNum = 0.0;
+					initNeighborNum = 0.0;
+
+					initOriginalDenom = 0.0;
+					initNeighborDenom = 0.0;
+
+					initOriginalEndNum = 0.0;
+					initNeighborEndNum = 0.0;
+
+					initOriginalEndDenom = 0.0;
+					initNeighborEndDenom = 0.0;
+					
 					for (int a = 0; a < globalMap.size(); a++) {
 
 						HashMap<Integer, Node> lattice = globalMap.get(a);
+						ArrayList<Integer> startStates = Main.returnStartStates(lattice);
 
 						for (int k = 1; k < lattice.size() - 1; k++) {
 							Node n = lattice.get(k);
 							for (int k1 : n.next) {
 								Node n2 = lattice.get(k1);
 								values.add(p(i, j, n, n2));  //calculate transition i-j
+								
 								for (int k2 = 0; k2 < Main.tagSize; k2++) {
 									valuesDenom.add(p(i, k2, n, n2));  //calculate transition i-k
+								}
+								
+								if (n2.isEndState) {  // if node end state calculate initial i-</s>
+									valuesInitEnd.add(Main.initialProbabilities.get(Main.tagList.get(i) + "|</s>"));  // calculate initial i-</s>
+									for (int k2 = 0; k2 < Main.tagSize; k2++) {
+										valuesInitEndDenom
+												.add(Main.initialProbabilities.get(Main.tagList.get(k2) + "|</s>"));  // calculate initial all tags-</s>
+									}
+
+								}
+							}
+							if (startStates.contains(n.stateNum)) {   // if node start state calculate initial <s>-i
+
+								valuesInit.add(Main.emissionProbabilities.get(Main.tagList.get(i) + "|" + n.word)
+										+ Main.initialProbabilities.get("<s>|" + Main.tagList.get(i)));  // calculate initial <s>-i
+								for (int k2 = 0; k2 < Main.tagSize; k2++) {
+									valuesInitDenom.add(Main.emissionProbabilities.get(Main.tagList.get(k2) + "|" + n.word)
+											+ Main.initialProbabilities.get("<s>|" + Main.tagList.get(k2)));  // calculate initial <s>- all tags
 								}
 							}
 
 						}
-
+						
 						if (a == 0) {
 
 							transOriginalNum += Math.exp(Main.logSumOfExponentials(values));
@@ -157,6 +213,20 @@ public class Function implements DifferentiableFunction {
 
 							values.clear();
 							valuesDenom.clear();
+							
+
+							initOriginalNum += Math.exp(Main.logSumOfExponentials(valuesInit));
+							initOriginalDenom += Math.exp(Main.logSumOfExponentials(valuesInitDenom));
+
+							initOriginalEndNum += Math.exp(Main.logSumOfExponentials(valuesInitEnd));
+							initOriginalEndDenom += Math.exp(Main.logSumOfExponentials(valuesInitEndDenom));
+
+							valuesInit.clear();
+							valuesInitDenom.clear();
+
+							valuesInitEnd.clear();
+							valuesInitEndDenom.clear();
+							
 						} else {
 
 							transNeighborNum += Math.exp(Main.logSumOfExponentials(values));
@@ -164,141 +234,49 @@ public class Function implements DifferentiableFunction {
 
 							values.clear();
 							valuesDenom.clear();
+							
+							initNeighborNum += Math.exp(Main.logSumOfExponentials(valuesInit));
+							initNeighborDenom += Math.exp(Main.logSumOfExponentials(valuesInitDenom));
+
+							initNeighborEndNum += Math.exp(Main.logSumOfExponentials(valuesInitEnd));
+							initNeighborEndDenom += Math.exp(Main.logSumOfExponentials(valuesInitEndDenom));
+
+							valuesInit.clear();
+							valuesInitDenom.clear();
+
+							valuesInitEnd.clear();
+							valuesInitEndDenom.clear();
 
 						}
 					}
 
 					orgScore += divide(transOriginalNum, transOriginalDenom);  //divide for all sentences transOriginalNum / transOriginalDenom
 					negScore += divide(transNeighborNum, transNeighborDenom);  //divide for all negative sentences transNeighborNum / transNeighborDenom
+					
+					/* Calculation for initial */
+					
+					initOrgScore += divide(initOriginalNum, initOriginalDenom);
+					initNegScore += divide(initNeighborNum, initNeighborDenom);
+
+					initOrgScoreEnd += divide(initOriginalEndNum, initOriginalEndDenom);
+					initNegScoreEnd += divide(initNeighborEndNum, initNeighborEndDenom);
 
 				}
 
 				String key = (Main.tagList.get(i) + "|" + Main.tagList.get(j));
 				double score = orgScore - negScore;
 				gradTransitionProbabilities.put(key, score);
+				
+				String initKey = "<s>|" + Main.tagList.get(i);
+				double initScore = initOrgScore - initNegScore;
+				gradInitialProbabilities.put(initKey, initScore);
+
+				String initKeyEnd = Main.tagList.get(i) + "|</s>";
+				double initScoreEnd = initOrgScoreEnd - initNegScoreEnd;
+				gradInitialProbabilities.put(initKeyEnd, initScoreEnd);
 
 			}
 
-			/* re-estimation of initial probabilities NEW VERSION */
-
-			ArrayList<Double> valuesInit = new ArrayList<>();
-			ArrayList<Double> valuesInitDenom = new ArrayList<>();
-
-			ArrayList<Double> valuesInitEnd = new ArrayList<>();
-			ArrayList<Double> valuesInitEndDenom = new ArrayList<>();
-
-			double initOriginalNum = 0.0;
-			double initNeighborNum = 0.0;
-
-			double initOriginalDenom = 0.0;
-			double initNeighborDenom = 0.0;
-
-			double initOriginalEndNum = 0.0;
-			double initNeighborEndNum = 0.0;
-
-			double initOriginalEndDenom = 0.0;
-			double initNeighborEndDenom = 0.0;
-
-			double initOrgScore = 0.0;
-			double initNegScore = 0.0;
-
-			double initOrgScoreEnd = 0.0;
-			double initNegScoreEnd = 0.0;
-
-			for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
-				initOriginalNum = 0.0;
-				initNeighborNum = 0.0;
-
-				initOriginalDenom = 0.0;
-				initNeighborDenom = 0.0;
-
-				initOriginalEndNum = 0.0;
-				initNeighborEndNum = 0.0;
-
-				initOriginalEndDenom = 0.0;
-				initNeighborEndDenom = 0.0;
-
-				for (int a = 0; a < globalMap.size(); a++) {
-
-					HashMap<Integer, Node> lattice = globalMap.get(a);
-					ArrayList<Integer> startStates = Main.returnStartStates(lattice);
-
-					for (int k = 1; k < lattice.size() - 1; k++) {
-						Node n = lattice.get(k);
-						for (int k1 : n.next) {
-							Node n2 = lattice.get(k1);
-
-							if (n2.isEndState) {  // if node end state calculate initial i-</s>
-
-								valuesInitEnd.add(Main.initialProbabilities.get(Main.tagList.get(i) + "|</s>"));  // calculate initial i-</s>
-								for (int k2 = 0; k2 < Main.tagSize; k2++) {
-									valuesInitEndDenom
-											.add(Main.initialProbabilities.get(Main.tagList.get(k2) + "|</s>"));  // calculate initial all tags-</s>
-								}
-
-							}
-
-						}
-
-						if (startStates.contains(n.stateNum)) {   // if node start state calculate initial <s>-i
-
-							valuesInit.add(Main.emissionProbabilities.get(Main.tagList.get(i) + "|" + n.word)
-									+ Main.initialProbabilities.get("<s>|" + Main.tagList.get(i)));  // calculate initial <s>-i
-							for (int k2 = 0; k2 < Main.tagSize; k2++) {
-								valuesInitDenom.add(Main.emissionProbabilities.get(Main.tagList.get(k2) + "|" + n.word)
-										+ Main.initialProbabilities.get("<s>|" + Main.tagList.get(k2)));  // calculate initial <s>- all tags
-							}
-						}
-
-					}
-
-					if (a == 0) {
-
-						initOriginalNum += Math.exp(Main.logSumOfExponentials(valuesInit));
-						initOriginalDenom += Math.exp(Main.logSumOfExponentials(valuesInitDenom));
-
-						initOriginalEndNum += Math.exp(Main.logSumOfExponentials(valuesInitEnd));
-						initOriginalEndDenom += Math.exp(Main.logSumOfExponentials(valuesInitEndDenom));
-
-						valuesInit.clear();
-						valuesInitDenom.clear();
-
-						valuesInitEnd.clear();
-						valuesInitEndDenom.clear();
-
-					} else {
-
-						initNeighborNum += Math.exp(Main.logSumOfExponentials(valuesInit));
-						initNeighborDenom += Math.exp(Main.logSumOfExponentials(valuesInitDenom));
-
-						initNeighborEndNum += Math.exp(Main.logSumOfExponentials(valuesInitEnd));
-						initNeighborEndDenom += Math.exp(Main.logSumOfExponentials(valuesInitEndDenom));
-
-						valuesInit.clear();
-						valuesInitDenom.clear();
-
-						valuesInitEnd.clear();
-						valuesInitEndDenom.clear();
-
-					}
-				}
-
-				initOrgScore += divide(initOriginalNum, initOriginalDenom);
-				initNegScore += divide(initNeighborNum, initNeighborDenom);
-
-				initOrgScoreEnd += divide(initOriginalEndNum, initOriginalEndDenom);
-				initNegScoreEnd += divide(initNeighborEndNum, initNeighborEndDenom);
-			}
-
-			String initKey = "<s>|" + Main.tagList.get(i);
-			double initScore = initOrgScore - initNegScore;
-			gradInitialProbabilities.put(initKey, initScore);
-
-			String initKeyEnd = Main.tagList.get(i) + "|</s>";
-			double initScoreEnd = initOrgScoreEnd - initNegScoreEnd;
-			gradInitialProbabilities.put(initKeyEnd, initScoreEnd);
-
-			
 			/* re-estimation of emission probabilities NEW VERSION */
 			
 			HashMap<String, Double> originalMap = new HashMap<>();
