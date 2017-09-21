@@ -22,7 +22,9 @@ public class Function implements DifferentiableFunction {
 	// ---------------------------------------------------------
 
 	public double functionValue = 0.0;
-	public static final double LAMBDA_EM = 1;
+//	public static final double LAMBDA_EM = Math.pow(10, -(1.0/3.0));
+	public static final double LAMBDA_EM = 1.0;
+			
 	public int iterCount = 0;
 	ArrayList<Double> originalList = new ArrayList<>();
 	ArrayList<Double> negativeList = new ArrayList<>();

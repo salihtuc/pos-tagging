@@ -74,8 +74,8 @@ public class Main {
 			while ((line = br.readLine()) != null) {
 
 				if (line.split(" ").length > 2) {
-					 sentences.add(start + line.toLowerCase());
-					sentences.add(line.toLowerCase());
+					sentences.add(start + line.toLowerCase());
+//					sentences.add(line.toLowerCase());
 
 					allWords.addAll(Arrays.asList((line.toLowerCase()).trim().split(" ")));
 					// allWords.addAll(Arrays.asList((line.toLowerCase()).split("
