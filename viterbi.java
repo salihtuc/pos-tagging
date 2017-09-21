@@ -56,7 +56,7 @@ public class viterbi {
 		System.out.println("=== Tagging the text");
 		start = System.nanoTime();
 
-		tagging("out400.txt", "out400_B_LBFGS.txt");
+		tagging("out400.txt", "out400_deneme.txt");
 		elapsedTime = System.nanoTime() - start;
 		System.out.println("=== Tagging Completed");
 		System.out.println("Total time: " + elapsedTime);
@@ -68,7 +68,7 @@ public class viterbi {
 		while (it.hasNext()) {
 			Map.Entry pair = (Map.Entry) it.next();
 			String wordd = (String) pair.getKey();
-			String tag = wordd.split("-", 2)[0];
+			String tag = wordd.split("\\|", 2)[0];
 			double value = (double) pair.getValue();
 			if (tag.equals(i)) {
 				sum += value + 0.00001;
@@ -78,14 +78,14 @@ public class viterbi {
 		while (it.hasNext()) {
 			Map.Entry pair = (Map.Entry) it.next();
 			String wordd = (String) pair.getKey();
-			String tag = wordd.split("-", 2)[0];
+			String tag = wordd.split("\\|", 2)[0];
 			if (tag.equals(i)) {
 				emissions.replace(wordd, emissions.get(wordd) / sum);
 				//// sum += value + 0.00001;
 			}
 		}
 
-		emissions.put(i + "-" + word, 0.00001 / sum);
+		emissions.put(i + "|" + word, 0.00001 / sum);
 		wordsAll.add(word);
 
 		System.out.println("\"" + word + "\" has been smoothed");
@@ -182,7 +182,7 @@ public class viterbi {
 	private static double vitScore(String tag, String word, int idxWord, int idxTag) {
 		double max = 0.0;
 		double emProb = 0.00000001;
-		String emit = tag + "-" + word;
+		String emit = tag + "|" + word;
 		if (emissions.keySet().contains(emit))
 			emProb = emissions.get(emit);
 		
@@ -190,7 +190,7 @@ public class viterbi {
 
 		if (idxWord == 0) {
 			double transProb = 0.00000001;
-			String trans = "<s>-" + tag;
+			String trans = "<s>|" + tag;
 			if (transitions.keySet().contains(trans))
 				transProb = transitions.get(trans);
 			//// NodeV trans = transitions.get("<s>");
@@ -205,7 +205,7 @@ public class viterbi {
 				String prevTag = statess.get(i);
 				double prevVitS = viterbi[i][idxWord - 1];
 				double transProb = 0.00000001;
-				String trans = prevTag + "-" + tag;
+				String trans = prevTag + "|" + tag;
 				if (transitions.keySet().contains(trans))
 					transProb = transitions.get(trans);
 				
@@ -222,8 +222,8 @@ public class viterbi {
 	
 	private static void buildModel() throws IOException {
 
-		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("outp_B_LBFGS.txt"), "UTF8"));
-		String tagPrev = "start";
+		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("initialProb_B.txt"), "UTF8"));
+		String tagPrev = "<s>";
 		String tag = "";
 		String word = "";
 		try {
@@ -232,17 +232,18 @@ public class viterbi {
 			while (line != null) {
 				if (line.length() > 0) {
 
-					if (i <= 196) {
+					if (i <= 123) {
 						String[] words = line.split(" ");
-						tag = words[0].split("-", 2)[1];
-						transitions.put(words[0], Double.parseDouble(words[1]));
+						tag = words[0].replace("_t", "").split("\\|", 2)[1];
+						transitions.put(words[0].replace("_t", ""), Double.parseDouble(words[1]));
 						if (!statess.contains(tag)) {
 							statess.add(tag);
 						}
 
 					} else {
 						String[] words = line.split(" ");
-						word = words[0].split("-", 2)[1];
+						word = words[0].split("\\|", 2)[1];
+						
 						wordsAll.add(word);
 						emissions.put(words[0], Double.parseDouble(words[1]));
 					}
@@ -260,8 +261,11 @@ public class viterbi {
 	}
 
 	private static void calculate(String word, String tag, String prevTag) {
+		
 		String keyTrans = prevTag + "|" + tag;
 		String keyEmit = tag + "|" + word;
+		
+		
 		if (transitions.keySet().contains(keyTrans)) {
 			double value = transitions.get(keyTrans);
 			transitions.put(keyTrans, value + 1);
@@ -277,6 +281,7 @@ public class viterbi {
 //		} else {
 //			tagValuesEmission.put(tag, 1.0);
 //		}
+		if (!word.equals("<end>")){
 		if (emissions.keySet().contains(keyEmit)) {
 			double value = emissions.get(keyEmit);
 			emissions.put(keyEmit, value + 1);
@@ -284,20 +289,23 @@ public class viterbi {
 		} else {
 			emissions.put(keyEmit, 1.0);
 		}
-
+		}
+		
 	}
 
 	private static void avg() throws FileNotFoundException {
-		PrintWriter pw= new PrintWriter(new File("initialProb.txt"));
+//		System.out.println(tagValues.get("</s>"));
+		PrintWriter pw= new PrintWriter(new File("initialProb_B.txt"));
 		for (String key : transitions.keySet()) {
 			String prevTag = key.split("\\|")[0];
+//			System.out.println(prevTag);
 			transitions.put(key, transitions.get(key) / tagValues.get(prevTag));
-			pw.println(key+" "+transitions.get(key) / tagValues.get(prevTag));
+			pw.println(key+"_t "+transitions.get(key) / tagValues.get(prevTag));
 		}
 
 		for (String key : emissions.keySet()) {
 			String tag = key.split("\\|")[0];
-			System.out.println(key);
+//			System.out.println(key);
 			emissions.put(key, emissions.get(key) / tagValues.get(tag));
 			pw.println(key+" "+emissions.get(key) / tagValues.get(tag));
 		}
@@ -315,7 +323,7 @@ public class viterbi {
 	private static void buildModel1() throws IOException {
 
 		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("out-result16.txt"), "UTF8"));
-		String tagPrev = "<s>";
+		
 		String tag = "";
 		String word = "";
 		int tagCounter=1;
@@ -324,6 +332,7 @@ public class viterbi {
 			int i = 1;
 			while (line != null) {
 				if (line.length() > 0) {
+					String tagPrev = "<s>";
 					String[] words = line.toLowerCase().split("\\s+");
 					// System.out.println(sentence+" "+words.length+"
 					// "+words[1]+" "+words[4]);
@@ -346,12 +355,10 @@ public class viterbi {
 						calculate(word, tag, tagPrev);
 						tagPrev = tag;
 					}
-					calculate("end", "</s>", tagPrev);
+					calculate("<end>", "</s>", tagPrev);
 					
 					
-				} else {
-					tagPrev = "<s>";
-				}
+				} 
 //				tagValues.put("</s>", 1.0);
 				if (tagValues.keySet().contains("</s>")) {
 				double value = tagValues.get(tag);
