@@ -56,7 +56,7 @@ public class viterbi {
 		System.out.println("=== Tagging the text");
 		start = System.nanoTime();
 
-		tagging("out400.txt", "out400_deneme.txt");
+		tagging("out400.txt", "out400_On_LBFGS_100_.txt");
 		elapsedTime = System.nanoTime() - start;
 		System.out.println("=== Tagging Completed");
 		System.out.println("Total time: " + elapsedTime);
@@ -71,7 +71,7 @@ public class viterbi {
 			String tag = wordd.split("\\|", 2)[0];
 			double value = (double) pair.getValue();
 			if (tag.equals(i)) {
-				sum += value + 0.00001;
+				sum += value + Double.MIN_VALUE;
 			}
 		}
 
@@ -85,7 +85,7 @@ public class viterbi {
 			}
 		}
 
-		emissions.put(i + "|" + word, 0.00001 / sum);
+		emissions.put(i + "|" + word, Double.MIN_VALUE / sum);
 		wordsAll.add(word);
 
 		System.out.println("\"" + word + "\" has been smoothed");
@@ -141,6 +141,8 @@ public class viterbi {
 						idx = i;
 					}
 				}
+//				tag = "<end>" + "/" + statess.get(idx) + " " + tag;
+				
 				idx = vitPrev[idx][n];
 				for (int i = n-1; i >= 0; i--) {
 
@@ -222,7 +224,7 @@ public class viterbi {
 	
 	private static void buildModel() throws IOException {
 
-		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("initialProb_B.txt"), "UTF8"));
+		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("outp_new.txt"), "UTF8"));
 		String tagPrev = "<s>";
 		String tag = "";
 		String word = "";
@@ -231,11 +233,11 @@ public class viterbi {
 			int i = 1;
 			while (line != null) {
 				if (line.length() > 0) {
-
-					if (i <= 123) {
+//					System.out.println(line);
+					if (i <= 168) {
 						String[] words = line.split(" ");
-						tag = words[0].replace("_t", "").split("\\|", 2)[1];
-						transitions.put(words[0].replace("_t", ""), Double.parseDouble(words[1]));
+						tag = words[0].split("\\|", 2)[1];
+						transitions.put(words[0], -1 *Double.parseDouble(words[1]));
 						if (!statess.contains(tag)) {
 							statess.add(tag);
 						}
@@ -245,7 +247,7 @@ public class viterbi {
 						word = words[0].split("\\|", 2)[1];
 						
 						wordsAll.add(word);
-						emissions.put(words[0], Double.parseDouble(words[1]));
+						emissions.put(words[0], -1 *Double.parseDouble(words[1]));
 					}
 
 					i++;
