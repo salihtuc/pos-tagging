@@ -66,7 +66,7 @@ public class Main {
 			e1.printStackTrace();
 		}
 
-		try (BufferedReader br = new BufferedReader(new FileReader("deneme.txt"))) {
+		try (BufferedReader br = new BufferedReader(new FileReader("input.txt"))) {
 			String start = "<start> ";
 			String line;
 
@@ -74,6 +74,7 @@ public class Main {
 
 				if (line.split(" ").length > 2) {
 					sentences.add(start + line.toLowerCase());
+//					sentences.add(start + line.toLowerCase());
 
 					allWords.addAll(Arrays.asList((line.toLowerCase()).trim().split(" ")));
 				}
@@ -98,7 +99,7 @@ public class Main {
 		for (String sentence : sentences)
 			fillEmissionMap(sentence); // Creating emissionProbabilities map
 
-//		fillInitialFromFile("initialProb.txt");
+		fillInitialFromFile("initialProb.txt");
 
 		tagFeatureWeights = createWeightsArray(transitionProbabilities, initialProbabilities, emissionProbabilities,
 				gradFeature2Index);
@@ -136,58 +137,59 @@ public class Main {
 			}
 		}
 		
-//		/* LBFGS-B part */
-//		Minimizer alg = new Minimizer();
-//		alg.getStopConditions().setMaxIterations(10000);
-//		alg.setDebugLevel(1);
-//
-//		Result ret;
-//		try {
-//			double dSum = 0;
-//			for (double d : tagFeatureWeights) {
-//				dSum += d;
-//			}
-//			System.out.println("First: " + dSum);
-//			pw.println("First " + dSum);
-//
-//			ret = alg.run(new Function(), tagFeatureWeights);
-//
-//			double finalValue = ret.functionValue;
-//			double[] finalGradient = ret.gradient;
-//
-//			System.out.println("Final Value: " + finalValue);
-//			Main.pw.println("Final Value: " + finalValue);
-//			System.out.println("Gradients:");
-//			printDoubleArray(finalGradient);
-//			double dSum2 = 0;
-//			for (double d : finalGradient) {
-//				dSum2 += d;
-//			}
-//			System.out.println("Last: " + dSum2);
-//			pw.println("Last: " + dSum2);
-//
-//			updateProbabilities(finalGradient, gradFeature2Index);
-//			tagFeatureWeights = finalGradient;
-//
-//			for (String s : Main.transitionProbabilities.keySet()) {
-//				Main.pw.println(s + " " + Main.transitionProbabilities.get(s));
-//			}
-//			for (String s : Main.initialProbabilities.keySet()) {
-//				Main.pw.println(s + " " + Main.initialProbabilities.get(s));
-//			}
-//			for (String s : Main.emissionProbabilities.keySet()) {
-//				Main.pw.println(s + " " + Main.emissionProbabilities.get(s));
-//			}
-//
-//		} catch (LBFGSBException e) {
-//			e.printStackTrace();
-//		}
-//
-//		// Time operations. Just using for information.
-//		long endTime = System.nanoTime();
-//		long duration = (endTime - startTime); // divide by 1000000 to get milliseconds.
-//		System.out.println("\nRunning time: " + duration + " nanoseconds ~ " + duration / 1000000 + " milliseconds");
-//		pw.close();
+		/* LBFGS-B part */
+		Minimizer alg = new Minimizer();
+		alg.getStopConditions().setMaxIterations(10000);
+		alg.setDebugLevel(1);
+//		alg.getStopConditions().setFunctionReductionFactor(1e+18);
+
+		Result ret;
+		try {
+			double dSum = 0;
+			for (double d : tagFeatureWeights) {
+				dSum += d;
+			}
+			System.out.println("First: " + dSum);
+			pw.println("First " + dSum);
+
+			ret = alg.run(new Function(), tagFeatureWeights);
+
+			double finalValue = ret.functionValue;
+			double[] finalGradient = ret.gradient;
+
+			System.out.println("Final Value: " + finalValue);
+			Main.pw.println("Final Value: " + finalValue);
+			System.out.println("Gradients:");
+			printDoubleArray(finalGradient);
+			double dSum2 = 0;
+			for (double d : finalGradient) {
+				dSum2 += d;
+			}
+			System.out.println("Last: " + dSum2);
+			pw.println("Last: " + dSum2);
+
+			updateProbabilities(finalGradient, gradFeature2Index);
+			tagFeatureWeights = finalGradient;
+
+			for (String s : Main.transitionProbabilities.keySet()) {
+				Main.pw.println(s + " " + Main.transitionProbabilities.get(s));
+			}
+			for (String s : Main.initialProbabilities.keySet()) {
+				Main.pw.println(s + " " + Main.initialProbabilities.get(s));
+			}
+			for (String s : Main.emissionProbabilities.keySet()) {
+				Main.pw.println(s + " " + Main.emissionProbabilities.get(s));
+			}
+
+		} catch (LBFGSBException e) {
+			e.printStackTrace();
+		}
+
+		// Time operations. Just using for information.
+		long endTime = System.nanoTime();
+		long duration = (endTime - startTime); // divide by 1000000 to get milliseconds.
+		System.out.println("\nRunning time: " + duration + " nanoseconds ~ " + duration / 1000000 + " milliseconds");
+		pw.close();
 	}
 
 	protected static void printDoubleArray(double[] array) {
@@ -231,7 +233,7 @@ public class Main {
 
 	private static void fillInitialMap() {
 		double value = 0.000000001;
-		value = 0.01;
+		value = 0;
 
 		for (int i = 0; i < tagList.size(); i++) {
 			String key1 = "<s>|" + tagList.get(i);
@@ -264,7 +266,7 @@ public class Main {
 		// double value = 1.0 / (tagSize); // For uniform values
 		Random r = new Random();
 		double value = 0.000000001; // For zero values
-		value = 0.01;
+		value = 0;
 
 		for (int i = 0; i < (tagSize); i++) {
 			for (int j = 0; j < (tagSize); j++) {
@@ -283,7 +285,7 @@ public class Main {
 		// double value = 1.0 / (allWords.size()); // For uniform values
 		double value = 0.000000001; // For zero values
 		
-		value = 0.01;
+		value = 0;
 		Random r = new Random();
 
 		for (int i = 0; i < tagSize; i++) {

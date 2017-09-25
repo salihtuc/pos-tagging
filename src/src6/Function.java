@@ -150,25 +150,25 @@ public class Function implements DifferentiableFunction {
 
 				for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
 					
-					/* Variables for transition */
-					transOriginalNum = 0.0;
-					transNeighborNum = 0.0;
-
-					transOriginalDenom = 0.0;
-					transNeighborDenom = 0.0;
-					
-					/* Variables for initial */
-					initOriginalNum = 0.0;
-					initNeighborNum = 0.0;
-
-					initOriginalDenom = 0.0;
-					initNeighborDenom = 0.0;
-
-					initOriginalEndNum = 0.0;
-					initNeighborEndNum = 0.0;
-
-					initOriginalEndDenom = 0.0;
-					initNeighborEndDenom = 0.0;
+//					/* Variables for transition */
+//					transOriginalNum = 0.0;
+//					transNeighborNum = 0.0;
+//
+//					transOriginalDenom = 0.0;
+//					transNeighborDenom = 0.0;
+//					
+//					/* Variables for initial */
+//					initOriginalNum = 0.0;
+//					initNeighborNum = 0.0;
+//
+//					initOriginalDenom = 0.0;
+//					initNeighborDenom = 0.0;
+//
+//					initOriginalEndNum = 0.0;
+//					initNeighborEndNum = 0.0;
+//
+//					initOriginalEndDenom = 0.0;
+//					initNeighborEndDenom = 0.0;
 					
 					for (int a = 0; a < globalMap.size(); a++) {
 
@@ -187,10 +187,10 @@ public class Function implements DifferentiableFunction {
 								
 								if (n2.isEndState) {  // if node end state calculate initial i-</s>
 									valuesInitEnd.add(Main.initialProbabilities.get(Main.tagList.get(i) + "|</s>"));  // calculate initial i-</s>
-//									for (int k2 = 0; k2 < Main.tagSize; k2++) {
-//										valuesInitEndDenom
-//												.add(Main.initialProbabilities.get(Main.tagList.get(k2) + "|</s>"));  // calculate initial all tags-</s>
-//									}
+									for (int k2 = 0; k2 < Main.tagSize; k2++) {
+										valuesInitEndDenom
+												.add(Main.initialProbabilities.get(Main.tagList.get(k2) + "|</s>"));  // calculate initial all tags-</s>
+									}
 
 								}
 							}
@@ -198,10 +198,10 @@ public class Function implements DifferentiableFunction {
 
 								valuesInit.add(Main.emissionProbabilities.get(Main.tagList.get(i) + "|" + n.word)
 										+ Main.initialProbabilities.get("<s>|" + Main.tagList.get(i)));  // calculate initial <s>-i
-//								for (int k2 = 0; k2 < Main.tagSize; k2++) {
-//									valuesInitDenom.add(Main.emissionProbabilities.get(Main.tagList.get(k2) + "|" + n.word)
-//											+ Main.initialProbabilities.get("<s>|" + Main.tagList.get(k2)));  // calculate initial <s>- all tags
-//								}
+								for (int k2 = 0; k2 < Main.tagSize; k2++) {
+									valuesInitDenom.add(Main.emissionProbabilities.get(Main.tagList.get(k2) + "|" + n.word)
+											+ Main.initialProbabilities.get("<s>|" + Main.tagList.get(k2)));  // calculate initial <s>- all tags
+								}
 							}
 
 						}
@@ -216,16 +216,16 @@ public class Function implements DifferentiableFunction {
 							
 
 							initOriginalNum += Math.exp(Main.logSumOfExponentials(valuesInit));
-//							initOriginalDenom += Math.exp(Main.logSumOfExponentials(valuesInitDenom));
+							initOriginalDenom += Math.exp(Main.logSumOfExponentials(valuesInitDenom));
 
 							initOriginalEndNum += Math.exp(Main.logSumOfExponentials(valuesInitEnd));
-//							initOriginalEndDenom += Math.exp(Main.logSumOfExponentials(valuesInitEndDenom));
+							initOriginalEndDenom += Math.exp(Main.logSumOfExponentials(valuesInitEndDenom));
 
 							valuesInit.clear();
-//							valuesInitDenom.clear();
+							valuesInitDenom.clear();
 
 							valuesInitEnd.clear();
-//							valuesInitEndDenom.clear();
+							valuesInitEndDenom.clear();
 							
 						} else {
 
@@ -236,31 +236,25 @@ public class Function implements DifferentiableFunction {
 							valuesDenom.clear();
 							
 							initNeighborNum += Math.exp(Main.logSumOfExponentials(valuesInit));
-//							initNeighborDenom += Math.exp(Main.logSumOfExponentials(valuesInitDenom));
+							initNeighborDenom += Math.exp(Main.logSumOfExponentials(valuesInitDenom));
 
 							initNeighborEndNum += Math.exp(Main.logSumOfExponentials(valuesInitEnd));
-//							initNeighborEndDenom += Math.exp(Main.logSumOfExponentials(valuesInitEndDenom));
+							initNeighborEndDenom += Math.exp(Main.logSumOfExponentials(valuesInitEndDenom));
 
 							valuesInit.clear();
-//							valuesInitDenom.clear();
+							valuesInitDenom.clear();
 
 							valuesInitEnd.clear();
-//							valuesInitEndDenom.clear();
+							valuesInitEndDenom.clear();
 
 						}
 					}
 
-					orgScore += divide(transOriginalNum, transOriginalDenom);  //divide for all sentences transOriginalNum / transOriginalDenom
-					negScore += divide(transNeighborNum, transNeighborDenom);  //divide for all negative sentences transNeighborNum / transNeighborDenom
-					
-					/* Calculation for initial */
-					
-					initOrgScore += initOriginalNum;
-					initNegScore += initNeighborNum;
-
-					initOrgScoreEnd += initOriginalEndNum;
-					initNegScoreEnd += initNeighborEndNum;
-					
+//					orgScore += divide(transOriginalNum, transOriginalDenom);  //divide for all sentences transOriginalNum / transOriginalDenom
+//					negScore += divide(transNeighborNum, transNeighborDenom);  //divide for all negative sentences transNeighborNum / transNeighborDenom
+//					
+//					/* Calculation for initial */
+//					
 //					initOrgScore += divide(initOriginalNum, initOriginalDenom);
 //					initNegScore += divide(initNeighborNum, initNeighborDenom);
 //
@@ -268,6 +262,17 @@ public class Function implements DifferentiableFunction {
 //					initNegScoreEnd += divide(initNeighborEndNum, initNeighborEndDenom);
 
 				}
+				
+				orgScore += divide(transOriginalNum, transOriginalDenom);  //divide for all sentences transOriginalNum / transOriginalDenom
+				negScore += divide(transNeighborNum, transNeighborDenom);  //divide for all negative sentences transNeighborNum / transNeighborDenom
+				
+				/* Calculation for initial */
+				
+				initOrgScore += divide(initOriginalNum, initOriginalDenom);
+				initNegScore += divide(initNeighborNum, initNeighborDenom);
+
+				initOrgScoreEnd += divide(initOriginalEndNum, initOriginalEndDenom);
+				initNegScoreEnd += divide(initNeighborEndNum, initNeighborEndDenom);
 
 				String key = (Main.tagList.get(i) + "|" + Main.tagList.get(j));
 				double score = orgScore - negScore;
@@ -287,16 +292,25 @@ public class Function implements DifferentiableFunction {
 			
 			HashMap<String, Double> originalMap = new HashMap<>();
 			HashMap<String, Double> negativeMap = new HashMap<>();
+			
+			HashMap<String, Double> originalwordsNum = new HashMap<String, Double>();
+			HashMap<String, Double> neighborsWord = new HashMap<String, Double>();
+
+			ArrayList<Double> listNum = new ArrayList<>();
+			ArrayList<Double> listDenom = new ArrayList<>();
+
+			double emissionOriginalDenom = 0.0;
+			double emissionNeighborDenom = 0.0;
 
 			for (HashMap<Integer, HashMap<Integer, Node>> globalMap : Main.sentenceGlobals) {
-				HashMap<String, Double> originalwordsNum = new HashMap<String, Double>();
-				HashMap<String, Double> neighborsWord = new HashMap<String, Double>();
-
-				ArrayList<Double> listNum = new ArrayList<>();
-				ArrayList<Double> listDenom = new ArrayList<>();
-
-				double emissionOriginalDenom = 0.0;
-				double emissionNeighborDenom = 0.0;
+//				HashMap<String, Double> originalwordsNum = new HashMap<String, Double>();
+//				HashMap<String, Double> neighborsWord = new HashMap<String, Double>();
+//
+//				ArrayList<Double> listNum = new ArrayList<>();
+//				ArrayList<Double> listDenom = new ArrayList<>();
+//
+//				double emissionOriginalDenom = 0.0;
+//				double emissionNeighborDenom = 0.0;
 
 				for (int a = 0; a < globalMap.size(); a++) {
 					HashMap<Integer, Node> lattice = globalMap.get(a);
@@ -336,44 +350,82 @@ public class Function implements DifferentiableFunction {
 						}
 					}
 				}
-				emissionOriginalDenom += Main.logSumOfExponentials(listNum);
-				emissionNeighborDenom += Main.logSumOfExponentials(listDenom);
-				listNum.clear();
-				listDenom.clear();
-				for (String s : originalwordsNum.keySet()) {
-					double valOrg = originalwordsNum.get(s);
-
-					if (originalMap.containsKey(s)) {
-
-						ArrayList<Double> list = new ArrayList<>();
-
-						list.add(originalMap.get(s));
-						list.add((valOrg - emissionOriginalDenom));
-
-						originalMap.put(s, Main.logSumOfExponentials(list));
-
-					} else {
-						originalMap.put(s, (valOrg - emissionOriginalDenom));
-					}
-
-					double valNeg = neighborsWord.get(s);
-
-					if (negativeMap.containsKey(s)) {
-
-						ArrayList<Double> list = new ArrayList<>();
-
-						list.add(negativeMap.get(s));
-						list.add((valNeg - emissionNeighborDenom));
-
-						negativeMap.put(s, Main.logSumOfExponentials(list));
-
-					} else {
-						negativeMap.put(s, (valNeg - emissionNeighborDenom));
-					}
-				}
-				originalwordsNum.clear();
-				neighborsWord.clear();
+//				emissionOriginalDenom += Main.logSumOfExponentials(listNum);
+//				emissionNeighborDenom += Main.logSumOfExponentials(listDenom);
+//				listNum.clear();
+//				listDenom.clear();
+//				for (String s : originalwordsNum.keySet()) {
+//					double valOrg = originalwordsNum.get(s);
+//
+//					if (originalMap.containsKey(s)) {
+//
+//						ArrayList<Double> list = new ArrayList<>();
+//
+//						list.add(originalMap.get(s));
+//						list.add((valOrg - emissionOriginalDenom));
+//
+//						originalMap.put(s, Main.logSumOfExponentials(list));
+//
+//					} else {
+//						originalMap.put(s, (valOrg - emissionOriginalDenom));
+//					}
+//
+//					double valNeg = neighborsWord.get(s);
+//
+//					if (negativeMap.containsKey(s)) {
+//
+//						ArrayList<Double> list = new ArrayList<>();
+//
+//						list.add(negativeMap.get(s));
+//						list.add((valNeg - emissionNeighborDenom));
+//
+//						negativeMap.put(s, Main.logSumOfExponentials(list));
+//
+//					} else {
+//						negativeMap.put(s, (valNeg - emissionNeighborDenom));
+//					}
+//				}
+//				originalwordsNum.clear();
+//				neighborsWord.clear();
 			}
+			
+			emissionOriginalDenom += Main.logSumOfExponentials(listNum);
+			emissionNeighborDenom += Main.logSumOfExponentials(listDenom);
+			listNum.clear();
+			listDenom.clear();
+			for (String s : originalwordsNum.keySet()) {
+				double valOrg = originalwordsNum.get(s);
+
+				if (originalMap.containsKey(s)) {
+
+					ArrayList<Double> list = new ArrayList<>();
+
+					list.add(originalMap.get(s));
+					list.add((valOrg - emissionOriginalDenom));
+
+					originalMap.put(s, Main.logSumOfExponentials(list));
+
+				} else {
+					originalMap.put(s, (valOrg - emissionOriginalDenom));
+				}
+
+				double valNeg = neighborsWord.get(s);
+
+				if (negativeMap.containsKey(s)) {
+
+					ArrayList<Double> list = new ArrayList<>();
+
+					list.add(negativeMap.get(s));
+					list.add((valNeg - emissionNeighborDenom));
+
+					negativeMap.put(s, Main.logSumOfExponentials(list));
+
+				} else {
+					negativeMap.put(s, (valNeg - emissionNeighborDenom));
+				}
+			}
+			originalwordsNum.clear();
+			neighborsWord.clear();
 
 			Iterator<Entry<String, Double>> originals = originalMap.entrySet().iterator();
 			Iterator<Entry<String, Double>> neighbors = negativeMap.entrySet().iterator();
@@ -431,13 +483,20 @@ public class Function implements DifferentiableFunction {
 	public double p(int i, int j, Node node, Node next) {
 		double num = 0.0;
 
+		// num = Main.transitionProbabilities.get(Main.tagList.get(i) + "|" +
+		// Main.tagList.get(j)) *
+		// Main.emissionProbabilities.get(Main.tagList.get(j) + "|" + next.word)
+		// *
+		// Math.exp(node.alpha.get(i) + next.beta.get(j)) ;
+
 		num = Main.transitionProbabilities.get(Main.tagList.get(i) + "|" + Main.tagList.get(j))
 				+ Main.emissionProbabilities.get(Main.tagList.get(j) + "|" + next.word) + Math.log(node.alpha.get(i))
 				+ Math.log(next.beta.get(j));
 
-		double denom = sumListValuesLog(node.tagScores);
+//		double denom = sumListValuesLog(node.tagScores);
 
-		return (num - denom);
+		return num;
+//		return (num - denom);
 	}
 
 	/** computes gamma(i, node) */
@@ -445,9 +504,10 @@ public class Function implements DifferentiableFunction {
 	public double gamma(int i, Node node) {
 		double num = 0.0;
 		num = Math.log(node.alpha.get(i)) + Math.log(node.beta.get(i));
-		double denom = sumListValuesLog(node.tagScores);
+//		double denom = sumListValuesLog(node.tagScores);
 
-		return (num - denom);
+		return num;
+//		return (num - denom);
 	}
 
 	/** divides two doubles. (0 / 0 = 0!) && (1 / 0 = 0!) */
