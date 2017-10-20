@@ -38,7 +38,7 @@ public class Main {
 
 		
 		// TODO
-		JointModel.tagFeatureWeights = createWeightsArray(JointModel.transitionProbabilities, JointModel.initialProbabilities, JointModel.generalEmissionProbabilities,
+		JointModel.tagFeatureWeights = JointModel.createWeightsArray(JointModel.transitionProbabilities, JointModel.initialProbabilities, JointModel.coarseProbabilities,
 				JointModel.gradFeature2Index);
 
 		
@@ -78,58 +78,6 @@ public class Main {
 		pw.close();
 	}
 
-
-//	private static void fillEmissionMap(String sentence) {
-//		words = new ArrayList<String>(Arrays.asList(sentence.split(" ")));
-//		// double value = 1.0 / (allWords.size()); // For uniform values
-//		double value = 0.000000001; // For zero values
-//		
-//		value = generalInitialValue;
-//		Random r = new Random();
-//
-//		for (int i = 0; i < tagSize; i++) {
-//			for (String word : words) {
-////				value = r.nextGaussian();
-////				value = (r.nextInt(100) / 10000.0);
-//
-//				String key = tagList.get(i) + "|" + word;
-//				if (!emissionProbabilities.containsKey(key)) {
-//					emissionProbabilities.put(key, value);
-//				}
-//			}
-//		}
-//	}
-
-	protected static double[] createWeightsArray(HashMap<String, Double> transitionMap,
-			HashMap<String, Double> initialMap, HashMap<String, Double> emissionMap,
-			HashMap<String, Integer> gradFeature2Index) {
-		int size = transitionMap.size() + initialMap.size() + emissionMap.size();
-
-		double[] weights = new double[size];
-
-		int i = 0;
-		for (String s : transitionMap.keySet()) {
-			weights[i] = transitionMap.get(s);
-
-			gradFeature2Index.put(s, i);
-			i++;
-		}
-		for (String s : initialMap.keySet()) {
-			weights[i] = initialMap.get(s);
-
-			gradFeature2Index.put(s, i);
-			i++;
-		}
-
-		for (String s : emissionMap.keySet()) {
-			weights[i] = emissionMap.get(s);
-
-			gradFeature2Index.put(s, i);
-			i++;
-		}
-
-		return weights;
-	}
 
 	protected static double[] createGradArray(HashMap<String, Double> transitionMap, HashMap<String, Double> initialMap,
 			HashMap<String, Double> emissionMap, HashMap<String, Integer> gradFeature2Index) {

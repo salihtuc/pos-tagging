@@ -1,11 +1,9 @@
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,6 +22,7 @@ public class JointModel {
 	static String wordVectorFile = "wordVectorsEng.txt";
 	public static double generalInitialValue = 0.0;
 	static double STOP_FACTOR = 1;
+	static int FREQ_THRESHOLD = 0;
 
 	// enum constants
 	static int STOP = 1;
@@ -92,6 +91,7 @@ public class JointModel {
 	static ArrayList<String> index2Feature = new ArrayList<String>();
 	public static HashMap<String, Integer> tagFeature2Index = new HashMap<>();
 	public static HashMap<String, Integer> gradFeature2Index = new HashMap<>();
+	public static HashMap<String, ArrayList<Integer>> feature2CoarseIndex = new HashMap<>();
 
 	// affixes
 	static LinkedHashSet<String> prefixes = new LinkedHashSet<String>();
@@ -108,6 +108,8 @@ public class JointModel {
 
 	public static PrintWriter pw = null;
 
+	/* Methods for initializing & Pre-computation */
+
 	static void initialize() {
 		try {
 			readWordVectors();
@@ -115,7 +117,25 @@ public class JointModel {
 			fillTagList(); // Creating tags (filling tagList)
 			fillTransitionMap(); // Creating transitionProbabilities map
 			fillInitialMap();
-			fillGeneralEmissions();
+
+			selectMostFrequentAffixes();
+
+			int i = 0;
+
+			System.err.println("Initializing features....");
+			for (String word : word2Cnt.keySet()) {
+				if (word2Cnt.get(word) < FREQ_THRESHOLD)
+					continue;
+
+				for (String neighbor : getNeighbors(word)) {
+					for (Pair<String, Integer> parentAndType : getCandidates(neighbor)) {
+						getFeatures(neighbor, parentAndType.getKey(), parentAndType.getValue());
+					}
+				}
+				System.err.print("\r" + (i++));
+			}
+			System.err.println();
+
 			initLattice();
 
 		} catch (IOException e) {
@@ -134,6 +154,7 @@ public class JointModel {
 
 				if (line.split(" ").length > 2) {
 					sentences.add(start + line.toLowerCase());
+					fillGeneralEmissions(line.toLowerCase());
 
 					allWords.addAll(Arrays.asList((line.toLowerCase()).trim().split(" ")));
 				}
@@ -145,7 +166,7 @@ public class JointModel {
 			for (String s : uniqueValues) {
 				word2Cnt.put(s, Collections.frequency(allWords, s));
 			}
-			System.out.println(word2Cnt);
+//			System.out.println(word2Cnt);
 
 			allWords.clear();
 			allWords.addAll(uniqueValues);
@@ -283,14 +304,13 @@ public class JointModel {
 				HashMap<Integer, Node> targetMap = globalMap.get(j);
 
 				String decideOriginal;
-				
-				if(j == 0) {
+
+				if (j == 0) {
 					decideOriginal = "original";
-				}
-				else {
+				} else {
 					decideOriginal = "negative";
 				}
-				
+
 				// Iterate over targetMap
 				iterateFromStartToEnd(targetMap, decideOriginal);
 				iterateFromEndToStart(targetMap, decideOriginal);
@@ -641,31 +661,28 @@ public class JointModel {
 		for (int j = 0; j < tagSize; j++) {
 
 			double emission = 0, transition = 0;
-			
+
 			if (decide.equals("alpha")) {
 
 				transition = transitionProbabilities.get(tagList.get(j) + "|" + tagList.get(tagNumber));
-				
-				if(decideOriginal.equals("original"))
+
+				if (decideOriginal.equals("original"))
 					emission = generalEmissionProbabilities.get(tagList.get(tagNumber) + "|" + n.word);
 				else
 					emission = generalEmissionProbabilitiesNegative.get(tagList.get(tagNumber) + "|" + n.word);
-				
-				
+
 				sum = transition + emission + Math.log(n2.alpha.get(j));
 				list.add(sum);
 
-			} 
-			else {
-				
+			} else {
+
 				transition = transitionProbabilities.get(tagList.get(tagNumber) + "|" + tagList.get(j));
 
-				if(decideOriginal.equals("original"))
+				if (decideOriginal.equals("original"))
 					emission = generalEmissionProbabilities.get(tagList.get(j) + "|" + n2.word);
 				else
 					emission = generalEmissionProbabilitiesNegative.get(tagList.get(j) + "|" + n2.word);
-				
-				
+
 				sum = transition + emission + Math.log(n2.beta.get(j));
 				list.add(sum);
 
@@ -726,6 +743,107 @@ public class JointModel {
 		return list;
 	}
 
+	private static void fillGeneralEmissions(String sentence) {
+		words = new ArrayList<String>(Arrays.asList(sentence.split(" ")));
+		// double value = 1.0 / (allWords.size()); // For uniform values
+		double value = 0.000000001; // For zero values
+
+		value = generalInitialValue;
+		Random r = new Random();
+
+		for (int i = 0; i < tagSize; i++) {
+			for (String word : words) {
+				// value = r.nextGaussian();
+				// value = (r.nextInt(100) / 10000.0);
+
+				String key = tagList.get(i) + "|" + word;
+				if (!generalEmissionProbabilities.containsKey(key)) {
+					generalEmissionProbabilities.put(key, value);
+				}
+			}
+		}
+	}
+
+	static void updateGeneralEmissions() {
+
+		for (int i = 0; i < tagSize; i++) {
+
+			// For original words
+			for (String word : allWords) {
+				ArrayList<Pair<String, Integer>> candidates = getCandidates(word, false);
+				double logScore;
+				ArrayList<Double> numeratorParts = new ArrayList<Double>();
+
+				for (Pair<String, Integer> parent : candidates) {
+					HashMap<Integer, Double> features = getFeatures(word, parent.getKey(), parent.getValue());
+
+					logScore = Tools.featureWeightProduct(features);
+					if (parent.getRight() == STOP)
+						logScore += Math.log(STOP_FACTOR);
+					numeratorParts.add(logScore);
+				}
+				double val = Tools.logSumOfExponentials(numeratorParts);
+
+				String key = tagList.get(i) + "|" + word;
+				generalEmissionProbabilities.put(key, val);
+
+				// evaluate the neighbors
+				ArrayList<String> neighbors = getNeighbors(word);
+				ArrayList<Double> ZParts = new ArrayList<Double>();
+
+				for (String neighbor : neighbors) {
+					candidates = getCandidates(neighbor, false);
+					for (Pair<String, Integer> parent : candidates) {
+						HashMap<Integer, Double> features = getFeatures(neighbor, parent.getKey(), parent.getValue());
+
+						logScore = Tools.featureWeightProduct(features);
+
+						if (parent.getRight() == STOP)
+							logScore += Math.log(STOP_FACTOR);
+
+						ZParts.add(logScore);
+					}
+				}
+				double logZ = Tools.logSumOfExponentials(ZParts);
+
+				generalEmissionProbabilitiesNegative.put(key, logZ);
+
+			}
+
+		}
+	}
+
+	protected static double[] createWeightsArray(HashMap<String, Double> transitionMap,
+			HashMap<String, Double> initialMap, HashMap<String, Double> emissionMap,
+			HashMap<String, Integer> gradFeature2Index) {
+		int size = transitionMap.size() + initialMap.size() + emissionMap.size();
+
+		double[] weights = new double[size];
+
+		int i = 0;
+		for (String s : transitionMap.keySet()) {
+			weights[i] = transitionMap.get(s);
+
+			gradFeature2Index.put(s, i);
+			i++;
+		}
+		for (String s : initialMap.keySet()) {
+			weights[i] = initialMap.get(s);
+
+			gradFeature2Index.put(s, i);
+			i++;
+		}
+
+		for (String s : emissionMap.keySet()) {
+			weights[i] = emissionMap.get(s);
+
+			gradFeature2Index.put(s, i);
+			i++;
+		}
+
+		return weights;
+	}
+
 	public static ArrayList<Integer> returnStartStates(HashMap<Integer, Node> lattice) {
 
 		ArrayList<Integer> startStates = new ArrayList<>();
@@ -738,6 +856,8 @@ public class JointModel {
 
 		return startStates;
 	}
+
+	/* Get Methods */
 
 	static ArrayList<String> getNeighbors(String word) {
 
@@ -881,16 +1001,16 @@ public class JointModel {
 		}
 
 		if (DOT)
-			Tools.addFeature(features, "DOT", cosine);
+			Tools.addFeature(features, "DOT", cosine, "other?");
 
 		// affix
 		String affix = "";
 		String inVocab = "";
 
 		if (word2Cnt.containsKey(parent) && word2Cnt.get(parent) > HEURISTIC_FREQ_THRESHOLD) {
-			Tools.addFeature(features, "_IV_", Math.log(word2Cnt.get(parent)));
+			Tools.addFeature(features, "_IV_", Math.log(word2Cnt.get(parent)), "other?");
 		} else
-			Tools.addFeature(features, "_OOV_", 1.);
+			Tools.addFeature(features, "_OOV_", 1., "other");
 
 		if (type == SUFFIX) {
 			// suffix case
@@ -898,14 +1018,14 @@ public class JointModel {
 			if (affix.length() > MAX_AFFIX_LENGTH || !suffixes.contains(affix))
 				affix = "UNK";
 			if (!affix.equals("UNK")) {
-				Tools.addFeature(features, inVocab + "SUFFIX_" + affix, 1.);
+				Tools.addFeature(features, inVocab + "SUFFIX_" + affix, 1., "tagDependent");
 			}
 
 			if (AFFIX_NEIGHBORS && suffixNeighbor.containsKey(affix)) {
 				int i = 0;
 				for (String neighbor : suffixNeighbor.get(affix).keySet()) {
 					if (word2Cnt.containsKey(parent + neighbor)) {
-						Tools.addFeature(features, "COR_S_" + affix, 1.);
+						Tools.addFeature(features, "COR_S_" + affix, 1., "tagDependent");
 						break;
 					}
 					i++;
@@ -917,11 +1037,13 @@ public class JointModel {
 			// context features
 			if (AFFIX_CONTEXT) {
 				Tools.addFeature(features,
-						inVocab + "SUFFIX_" + affix + "_BOUNDARY_" + parent.substring(parent.length() - 1), 1.);
+						inVocab + "SUFFIX_" + affix + "_BOUNDARY_" + parent.substring(parent.length() - 1), 1.,
+						"tagDependent");
 
 				if (parent.length() >= 2) {
 					Tools.addFeature(features,
-							inVocab + "SUFFIX_" + affix + "_BOUNDARY_" + parent.substring(parent.length() - 2), 1.);
+							inVocab + "SUFFIX_" + affix + "_BOUNDARY_" + parent.substring(parent.length() - 2), 1.,
+							"tagDependent");
 				}
 			}
 		} else if (type == REPEAT) {
@@ -930,14 +1052,14 @@ public class JointModel {
 			if (!suffixes.contains(affix))
 				affix = "UNK";
 			if (!affix.equals("UNK")) {
-				Tools.addFeature(features, inVocab + "SUFFIX_" + affix, 1.);
+				Tools.addFeature(features, inVocab + "SUFFIX_" + affix, 1., "tagDependent");
 			}
 
 			if (AFFIX_NEIGHBORS && suffixNeighbor.containsKey(affix)) {
 				int i = 0;
 				for (String neighbor : suffixNeighbor.get(affix).keySet()) {
 					if (word2Cnt.containsKey(parent + neighbor)) {
-						Tools.addFeature(features, "COR_S_" + affix, 1.);
+						Tools.addFeature(features, "COR_S_" + affix, 1., "tagDependent");
 						break;
 					}
 					i++;
@@ -949,14 +1071,16 @@ public class JointModel {
 			// context features
 			if (AFFIX_CONTEXT) {
 				Tools.addFeature(features,
-						inVocab + "SUFFIX_" + affix + "_BOUNDARY_" + parent.substring(parent.length() - 1), 1.);
+						inVocab + "SUFFIX_" + affix + "_BOUNDARY_" + parent.substring(parent.length() - 1), 1.,
+						"tagDependent");
 				if (parent.length() >= 2)
 					Tools.addFeature(features,
-							inVocab + "SUFFIX_" + affix + "_BOUNDARY_" + parent.substring(parent.length() - 2), 1.);
+							inVocab + "SUFFIX_" + affix + "_BOUNDARY_" + parent.substring(parent.length() - 2), 1.,
+							"tagDependent");
 			}
 			// REPEAT specific features
 			int parentLen = parent.length();
-			Tools.addFeature(features, inVocab + "REPEAT_" + word.charAt(parentLen), 1.);
+			Tools.addFeature(features, inVocab + "REPEAT_" + word.charAt(parentLen), 1., "other");
 
 		} else if (type == MODIFY) { // change last letter of parent
 			// assuming affix is only on the right side
@@ -964,13 +1088,13 @@ public class JointModel {
 			if (!suffixes.contains(affix))
 				affix = "UNK";
 			if (!affix.equals("UNK"))
-				Tools.addFeature(features, inVocab + "SUFFIX_" + affix, 1.);
+				Tools.addFeature(features, inVocab + "SUFFIX_" + affix, 1., "tagDependent");
 
 			if (AFFIX_NEIGHBORS && suffixNeighbor.containsKey(affix)) {
 				int i = 0;
 				for (String neighbor : suffixNeighbor.get(affix).keySet()) {
 					if (word2Cnt.containsKey(parent + neighbor)) {
-						Tools.addFeature(features, "COR_S_" + affix, 1.);
+						Tools.addFeature(features, "COR_S_" + affix, 1., "tagDependent");
 						break;
 					}
 					i++;
@@ -982,16 +1106,18 @@ public class JointModel {
 			// context features
 			if (AFFIX_CONTEXT) {
 				Tools.addFeature(features,
-						inVocab + "SUFFIX_" + affix + "_BOUNDARY_" + parent.substring(parent.length() - 1), 1.);
+						inVocab + "SUFFIX_" + affix + "_BOUNDARY_" + parent.substring(parent.length() - 1), 1.,
+						"tagDependent");
 				if (parent.length() >= 2)
 					Tools.addFeature(features,
-							inVocab + "SUFFIX_" + affix + "_BOUNDARY_" + parent.substring(parent.length() - 2), 1.);
+							inVocab + "SUFFIX_" + affix + "_BOUNDARY_" + parent.substring(parent.length() - 2), 1.,
+							"tagDependent");
 			}
 
 			// MODIFY specific features
 			int parentLen = parent.length();
 			Tools.addFeature(features,
-					inVocab + "MODIFY_" + parent.charAt(parentLen - 1) + "_" + word.charAt(parentLen - 1), 1.);
+					inVocab + "MODIFY_" + parent.charAt(parentLen - 1) + "_" + word.charAt(parentLen - 1), 1., "other");
 		}
 
 		else if (type == DELETE) { // add last letter of parent
@@ -1000,13 +1126,13 @@ public class JointModel {
 			if (!suffixes.contains(affix))
 				affix = "UNK";
 			if (!affix.equals("UNK"))
-				Tools.addFeature(features, inVocab + "SUFFIX_" + affix, 1.);
+				Tools.addFeature(features, inVocab + "SUFFIX_" + affix, 1., "tagDependent");
 
 			if (AFFIX_NEIGHBORS && suffixNeighbor.containsKey(affix)) {
 				int i = 0;
 				for (String neighbor : suffixNeighbor.get(affix).keySet()) {
 					if (word2Cnt.containsKey(parent + neighbor)) {
-						Tools.addFeature(features, "COR_S_" + affix, 1.);
+						Tools.addFeature(features, "COR_S_" + affix, 1., "tagDependent");
 						break;
 					}
 					i++;
@@ -1018,15 +1144,17 @@ public class JointModel {
 			// context features
 			if (AFFIX_CONTEXT) {
 				Tools.addFeature(features,
-						inVocab + "SUFFIX_" + affix + "_BOUNDARY_" + parent.substring(parent.length() - 1), 1.);
+						inVocab + "SUFFIX_" + affix + "_BOUNDARY_" + parent.substring(parent.length() - 1), 1.,
+						"tagDependent");
 				if (parent.length() >= 2)
 					Tools.addFeature(features,
-							inVocab + "SUFFIX_" + affix + "_BOUNDARY_" + parent.substring(parent.length() - 2), 1.);
+							inVocab + "SUFFIX_" + affix + "_BOUNDARY_" + parent.substring(parent.length() - 2), 1.,
+							"tagDependent");
 			}
 
 			// DELETE specific features
 			int parentLen = parent.length();
-			Tools.addFeature(features, inVocab + "DELETE_" + parent.charAt(parentLen - 1), 1.);
+			Tools.addFeature(features, inVocab + "DELETE_" + parent.charAt(parentLen - 1), 1., "other");
 		}
 
 		else if (type == PREFIX) {
@@ -1035,14 +1163,14 @@ public class JointModel {
 			if (affix.length() > MAX_AFFIX_LENGTH || !prefixes.contains(affix))
 				affix = "UNK";
 			if (!affix.equals("UNK")) {
-				Tools.addFeature(features, inVocab + "PREFIX_" + affix, 1);
+				Tools.addFeature(features, inVocab + "PREFIX_" + affix, 1, "tagDependent");
 			}
 
 			if (AFFIX_NEIGHBORS && prefixNeighbor.containsKey(affix)) {
 				int i = 0;
 				for (String neighbor : prefixNeighbor.get(affix).keySet()) {
 					if (word2Cnt.containsKey(neighbor + parent)) {
-						Tools.addFeature(features, "COR_P_" + affix, 1.);
+						Tools.addFeature(features, "COR_P_" + affix, 1., "tagDependent");
 						break;
 					}
 					i++;
@@ -1053,20 +1181,113 @@ public class JointModel {
 
 			// context features
 			if (AFFIX_CONTEXT) {
-				Tools.addFeature(features, inVocab + "PREFIX_" + affix + "_BOUNDARY_" + parent.substring(0, 1), 1.);
+				Tools.addFeature(features, inVocab + "PREFIX_" + affix + "_BOUNDARY_" + parent.substring(0, 1), 1.,
+						"tagDependent");
 				if (parent.length() >= 2)
-					Tools.addFeature(features, inVocab + "PREFIX_" + affix + "_BOUNDARY_" + parent.substring(0, 2), 1.);
+					Tools.addFeature(features, inVocab + "PREFIX_" + affix + "_BOUNDARY_" + parent.substring(0, 2), 1.,
+							"tagDependent");
 			}
 		}
 
 		// BIAS feature
-		Tools.addFeature(features, "BIAS", 1.);
+		Tools.addFeature(features, "BIAS", 1., "other");
 
 		// cache features
 		cacheFeatures(word, parent, type, features);
 
 		return features;
 	}
+
+	// get most frequent affixes
+	static void selectMostFrequentAffixes() throws IOException {
+		HashMap<String, Integer> suffixCnt = new HashMap<String, Integer>();
+		HashMap<String, Integer> prefixCnt = new HashMap<String, Integer>();
+		for (String word : word2Cnt.keySet()) {
+			if (word2Cnt.get(word) < FREQ_THRESHOLD)
+				continue;
+			for (int i = 1; i < word.length(); i++) {
+				String left = word.substring(0, i);
+				String right = word.substring(i);
+
+				// suffix case
+				Integer cnt = word2Cnt.get(left);
+				if (cnt != null && cnt > AFFIX_FREQ_THRESHOLD && right.length() <= MAX_AFFIX_LENGTH)
+					if (suffixCnt.containsKey(right))
+						suffixCnt.put(right, suffixCnt.get(right) + 1);
+					else
+						suffixCnt.put(right, 1);
+
+				// prefix case
+				cnt = word2Cnt.get(right);
+				if (cnt != null && cnt > AFFIX_FREQ_THRESHOLD && left.length() <= MAX_AFFIX_LENGTH)
+					if (prefixCnt.containsKey(left))
+						prefixCnt.put(left, prefixCnt.get(left) + 1);
+					else
+						prefixCnt.put(left, 1);
+			}
+		}
+
+		// sort and take top
+		Map<String, Integer> sortedSuffixes = Tools.sortByValue(suffixCnt);
+		Map<String, Integer> sortedPrefixes = Tools.sortByValue(prefixCnt);
+		int i = 0;
+		for (String suffix : sortedSuffixes.keySet()) {
+			suffixes.add(suffix);
+			i++;
+			if (i == TOP_AFFIX_SELECT)
+				break;
+		}
+		i = 0;
+		for (String prefix : sortedPrefixes.keySet()) {
+			prefixes.add(prefix);
+			i++;
+			if (i == TOP_AFFIX_SELECT)
+				break;
+		}
+
+		// NEW: add suffixNeighbors
+		if (AFFIX_NEIGHBORS) {
+			suffixNeighbor = Tools.computeAffixCorrelation(suffixes, 's');
+			prefixNeighbor = Tools.computeAffixCorrelation(prefixes, 'p');
+		}
+	}
+
+	// Functions for Caching features
+	static void cacheFeatures(String word, String parent, int type, HashMap<Integer, Double> features) {
+		if (!w2P2TypeFeatures.containsKey(word))
+			w2P2TypeFeatures.put(word, new HashMap<String, HashMap<Integer, HashMap<Integer, Double>>>());
+		if (!w2P2TypeFeatures.get(word).containsKey(parent))
+			w2P2TypeFeatures.get(word).put(parent, new HashMap<Integer, HashMap<Integer, Double>>());
+		if (!w2P2TypeFeatures.get(word).get(parent).containsKey(type))
+			w2P2TypeFeatures.get(word).get(parent).put(type, features);
+
+		// else just ignore
+	}
+
+	static HashMap<Integer, Double> getStopFeatures(String word) {
+		HashMap<Integer, Double> features = new HashMap<Integer, Double>();
+
+		if (word.length() >= 2) { // check is only to avoid null exception
+			Tools.addFeature(features, "STP_E_" + word.substring(word.length() - 2), 1., "tagDependent");
+			Tools.addFeature(features, "STP_B_" + word.substring(0, 2), 1., "tagDependent");
+		}
+
+		// max dot feature
+		if (DOT && word.length() >= 2) {
+			double maxDot = word2MaxDot.get(word);
+			Tools.addFeature(features, "STP_COS_" + (int) (10 * maxDot), 1., "other");
+		}
+
+		// length feature
+		Tools.addFeature(features, "STP_LEN_" + word.length(), 1., "other");
+
+		// BIAS feature
+		Tools.addFeature(features, "BIAS", 1., "other");
+
+		return features;
+	}
+
+	/* Check Methods */
 
 	// Heuristic function to prune out
 	static boolean checkHeuristic(String word, String parent, int type) {
@@ -1090,102 +1311,7 @@ public class JointModel {
 		return false;
 	}
 
-	// Functions for Caching features
-	static void cacheFeatures(String word, String parent, int type, HashMap<Integer, Double> features) {
-		if (!w2P2TypeFeatures.containsKey(word))
-			w2P2TypeFeatures.put(word, new HashMap<String, HashMap<Integer, HashMap<Integer, Double>>>());
-		if (!w2P2TypeFeatures.get(word).containsKey(parent))
-			w2P2TypeFeatures.get(word).put(parent, new HashMap<Integer, HashMap<Integer, Double>>());
-		if (!w2P2TypeFeatures.get(word).get(parent).containsKey(type))
-			w2P2TypeFeatures.get(word).get(parent).put(type, features);
-
-		// else just ignore
-	}
-
-	static HashMap<Integer, Double> getStopFeatures(String word) {
-		HashMap<Integer, Double> features = new HashMap<Integer, Double>();
-
-		if (word.length() >= 2) { // check is only to avoid null exception
-			Tools.addFeature(features, "STP_E_" + word.substring(word.length() - 2), 1.);
-			Tools.addFeature(features, "STP_B_" + word.substring(0, 2), 1.);
-		}
-
-		// max dot feature
-		if (DOT && word.length() >= 2) {
-			double maxDot = word2MaxDot.get(word);
-			Tools.addFeature(features, "STP_COS_" + (int) (10 * maxDot), 1.);
-		}
-
-		// length feature
-		Tools.addFeature(features, "STP_LEN_" + word.length(), 1.);
-
-		// BIAS feature
-		Tools.addFeature(features, "BIAS", 1.);
-
-		return features;
-	}
-
-	// TODO
-	static void fillGeneralEmissions() {
-
-		for(int i = 0; i < tagSize; i++) {
-			
-			// For original words
-			for(String word : allWords) {
-				ArrayList<Pair<String, Integer>> candidates = getCandidates(word, false);
-				double logScore;
-				ArrayList<Double> numeratorParts = new ArrayList<Double>();
-
-				for (Pair<String, Integer> parent : candidates) {
-					HashMap<Integer, Double> features = getFeatures(word, parent.getKey(), parent.getValue());
-					
-					logScore = Tools.featureWeightProduct(features);
-					if (parent.getRight() == STOP)
-						logScore += Math.log(STOP_FACTOR);
-					numeratorParts.add(logScore);
-				}
-				double val = Tools.logSumOfExponentials(numeratorParts);
-				
-				String key = tagList.get(i) + "|" + word;
-				generalEmissionProbabilities.put(key, val);
-			
-				//evaluate the neighbors
-		        ArrayList<String> neighbors = getNeighbors(word);
-		        ArrayList<Double> ZParts = new ArrayList<Double>();
-
-		        for(String neighbor : neighbors) {
-		            candidates = getCandidates(neighbor, false);
-		            for(Pair<String, Integer> parent : candidates) {
-		                HashMap<Integer, Double> features = getFeatures(neighbor, parent.getKey(), parent.getValue());
-
-		                logScore = Tools.featureWeightProduct(features);
-		                
-		                if(parent.getRight() == STOP) logScore += Math.log(STOP_FACTOR);
-		                
-		                ZParts.add(logScore);
-		            }
-		        }
-		        double logZ = Tools.logSumOfExponentials(ZParts);
-		        
-				generalEmissionProbabilitiesNegative.put(key, logZ);
-		        
-			}
-			
-		}
-	}
-
-	public static void normalizeFeatures(double[] point, String decide) {
-		for (int i = 0; i < tagSize; i++) {
-			HashMap<Integer, Double> features = returnTagFeatures(tagList.get(i), point, gradFeature2Index, decide);
-
-			double sum = Tools.sumDoubleListValues(features.values());
-
-			for (int featureIndex : features.keySet()) {
-				// point[featureIndex] = divide(Math.exp(point[featureIndex]), sum);
-				point[featureIndex] = Tools.divide((point[featureIndex]), sum);
-			}
-		}
-	}
+	/* Return Methods */
 
 	public static HashMap<Integer, Double> returnTagFeatures(String tag, double[] weights,
 			HashMap<String, Integer> gradFeature2Index, String decide) {
@@ -1200,7 +1326,7 @@ public class JointModel {
 					returnFeatures.put(index, weights[index]);
 				}
 			} else if (decide.equals("emission")) {
-				if (generalEmissionProbabilities.containsKey(s) && s.startsWith(tag + "|")) {
+				if (coarseProbabilities.containsKey(s) && s.startsWith(tag + "|")) {
 					returnFeatures.put(index, weights[index]);
 				}
 			} else {
@@ -1213,6 +1339,8 @@ public class JointModel {
 		return returnFeatures;
 	}
 
+	/* Update Methods */
+
 	public static void updateProbabilities(double[] weights, HashMap<String, Integer> gradFeature2Index) {
 		for (String s : gradFeature2Index.keySet()) {
 			int index = gradFeature2Index.get(s);
@@ -1221,8 +1349,21 @@ public class JointModel {
 				transitionProbabilities.put(s, weights[index]);
 			} else if (initialProbabilities.containsKey(s)) {
 				initialProbabilities.put(s, weights[index]);
-			} else if (generalEmissionProbabilities.containsKey(s)) {
-				generalEmissionProbabilities.put(s, weights[index]);
+			} else if (coarseProbabilities.containsKey(s)) {
+				coarseProbabilities.put(s, weights[index]);
+			}
+		}
+	}
+
+	public static void normalizeFeatures(double[] point, String decide) {
+		for (int i = 0; i < tagSize; i++) {
+			HashMap<Integer, Double> features = returnTagFeatures(tagList.get(i), point, gradFeature2Index, decide);
+
+			double sum = Tools.sumDoubleListValues(features.values());
+
+			for (int featureIndex : features.keySet()) {
+				// point[featureIndex] = divide(Math.exp(point[featureIndex]), sum);
+				point[featureIndex] = Tools.divide((point[featureIndex]), sum);
 			}
 		}
 	}

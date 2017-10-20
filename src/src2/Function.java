@@ -37,14 +37,21 @@ public class Function implements DifferentiableFunction {
 		if (iterCount != 0) {
 
 			JointModel.updateProbabilities(point, JointModel.gradFeature2Index);
+			JointModel.updateGeneralEmissions();
 
 			for (HashMap<Integer, HashMap<Integer, Node>> globalMap : JointModel.sentenceGlobals) {
 				for (int j = 0; j < globalMap.size(); j++) {
 					HashMap<Integer, Node> targetMap = globalMap.get(j);
 
+					String decideOriginal;
+					
+					if(j == 0)
+						decideOriginal = "original";
+					else
+						decideOriginal = "negative";
 					// Iterate over targetMap
-					JointModel.iterateFromStartToEnd(targetMap);
-					JointModel.iterateFromEndToStart(targetMap);
+					JointModel.iterateFromStartToEnd(targetMap, decideOriginal);
+					JointModel.iterateFromEndToStart(targetMap, decideOriginal);
 
 				}
 			}
@@ -247,38 +254,18 @@ public class Function implements DifferentiableFunction {
 						}
 					}
 
-//					orgScore += divide(transOriginalNum, transOriginalDenom);  //divide for all sentences transOriginalNum / transOriginalDenom
-//					negScore += divide(transNeighborNum, transNeighborDenom);  //divide for all negative sentences transNeighborNum / transNeighborDenom
-//					
-//					/* Calculation for initial */
-//					
-//					initOrgScore += divide(initOriginalNum, initOriginalDenom);
-//					initNegScore += divide(initNeighborNum, initNeighborDenom);
-//
-//					initOrgScoreEnd += divide(initOriginalEndNum, initOriginalEndDenom);
-//					initNegScoreEnd += divide(initNeighborEndNum, initNeighborEndDenom);
-
 				}
 				
 				orgScore += divide(transOriginalNum, transOriginalDenom);  //divide for all sentences transOriginalNum / transOriginalDenom
 				negScore += divide(transNeighborNum, transNeighborDenom);  //divide for all negative sentences transNeighborNum / transNeighborDenom
-				
-//				orgScore += transOriginalNum;
-//				negScore += transNeighborNum;
-				
+
 				/* Calculation for initial */
 				
 				initOrgScore += divide(initOriginalNum, initOriginalDenom);
 				initNegScore += divide(initNeighborNum, initNeighborDenom);
 				
-//				initOrgScore += initOriginalNum;
-//				initNegScore += initNeighborNum;
-
 				initOrgScoreEnd += divide(initOriginalEndNum, initOriginalEndDenom);
 				initNegScoreEnd += divide(initNeighborEndNum, initNeighborEndDenom);
-				
-//				initOrgScoreEnd += initOriginalEndNum;
-//				initNegScoreEnd += initNeighborEndNum;
 
 				String key = (JointModel.tagList.get(i) + "|" + JointModel.tagList.get(j));
 				double score = orgScore - negScore;
@@ -309,20 +296,11 @@ public class Function implements DifferentiableFunction {
 			double emissionNeighborDenom = 0.0;
 
 			for (HashMap<Integer, HashMap<Integer, Node>> globalMap : JointModel.sentenceGlobals) {
-//				HashMap<String, Double> originalwordsNum = new HashMap<String, Double>();
-//				HashMap<String, Double> neighborsWord = new HashMap<String, Double>();
-//
-//				ArrayList<Double> listNum = new ArrayList<>();
-//				ArrayList<Double> listDenom = new ArrayList<>();
-//
-//				double emissionOriginalDenom = 0.0;
-//				double emissionNeighborDenom = 0.0;
 
 				for (int a = 0; a < globalMap.size(); a++) {
 					HashMap<Integer, Node> lattice = globalMap.get(a);
 					for (int k = 1; k < lattice.size(); k++) {
 						Node node = lattice.get(k);
-
 
 							double g = gamma(i, node);
 
@@ -468,6 +446,10 @@ public class Function implements DifferentiableFunction {
 		num = Math.log(node.alpha.get(i)) + Math.log(node.beta.get(i));
 
 		return num;
+	}
+	
+	public double gammaEmission() {
+		
 	}
 
 	/** divides two doubles. (0 / 0 = 0!) && (1 / 0 = 0!) */
