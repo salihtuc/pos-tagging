@@ -1,4 +1,5 @@
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -92,7 +93,7 @@ public class JointModel {
 	public static HashMap<String, Integer> tagFeature2Index = new HashMap<>();
 	public static HashMap<String, Integer> gradFeature2Index = new HashMap<>();
 	public static HashMap<String, ArrayList<Integer>> feature2CoarseIndex = new HashMap<>();
-
+	
 	// affixes
 	static LinkedHashSet<String> prefixes = new LinkedHashSet<String>();
 	static LinkedHashSet<String> suffixes = new LinkedHashSet<String>();
@@ -117,7 +118,10 @@ public class JointModel {
 			fillTagList(); // Creating tags (filling tagList)
 			fillTransitionMap(); // Creating transitionProbabilities map
 			fillInitialMap();
+			fillEmissionMap();
 
+			fillInitialFromFile("initialProb.txt");
+			
 			selectMostFrequentAffixes();
 
 			int i = 0;
@@ -135,8 +139,12 @@ public class JointModel {
 				System.err.print("\r" + (i++));
 			}
 			System.err.println();
+			
+			fillCoarseMap();
 
 			initLattice();
+			
+			tagFeatureWeights = createWeightsArray(transitionProbabilities, initialProbabilities, coarseProbabilities, gradFeature2Index);
 
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -272,6 +280,62 @@ public class JointModel {
 
 			initialProbabilities.put(key1, value);
 			initialProbabilities.put(key2, value);
+		}
+	}
+	
+	private static void fillEmissionMap() {
+		Random r = new Random();
+		double value = 0.000000001; // For zero values
+		value = generalInitialValue;
+
+		for (int i = 0; i < (tagSize); i++) {
+			for (String word : allWords) {
+				String key;
+				
+				for(String neighbor : getNeighbors(word)) {
+					key = (tagList.get(i) + "|" + neighbor);
+					generalEmissionProbabilitiesNegative.put(key, value);
+				}
+				
+				key = (tagList.get(i) + "|" + word);
+				generalEmissionProbabilities.put(key, value);
+			}
+		}
+	}
+	
+	private static void fillCoarseMap() {
+		for(String feature : feature2Index.keySet()) {
+			coarseProbabilities.put(feature, 0.0);
+		}
+	}
+	
+	private static void fillInitialFromFile(String fileName) {
+		try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
+			String line;
+			while ((line = br.readLine()) != null) {
+				String[] values = line.split(" ");
+				String key = values[0];
+				double prob = Double.parseDouble(values[1]);
+
+				if (key.endsWith("_t")) { // Transition or Initial
+
+					key = key.substring(0, key.length() - 2);
+
+					if (key.contains("<s>") || key.contains("</s>")) {
+						initialProbabilities.put(key, prob);
+					} else {
+						transitionProbabilities.put(key, prob);
+					}
+				} else {
+					if (generalEmissionProbabilities.containsKey(key)) {
+						generalEmissionProbabilities.put(key, prob);
+					}
+				}
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -767,49 +831,49 @@ public class JointModel {
 	static void updateGeneralEmissions() {
 
 		for (int i = 0; i < tagSize; i++) {
-
-			// For original words
 			for (String word : allWords) {
-				ArrayList<Pair<String, Integer>> candidates = getCandidates(word, false);
-				double logScore;
-				ArrayList<Double> numeratorParts = new ArrayList<Double>();
+				ArrayList<Double> wordProbList = new ArrayList<>();
+				for (Pair<String, Integer> candidate : getCandidates(word, false)) {
+					HashMap<Integer, Double> features = getFeatures(word, candidate.getKey(),
+							candidate.getValue());
 
-				for (Pair<String, Integer> parent : candidates) {
-					HashMap<Integer, Double> features = getFeatures(word, parent.getKey(), parent.getValue());
-
-					logScore = Tools.featureWeightProduct(features);
-					if (parent.getRight() == STOP)
-						logScore += Math.log(STOP_FACTOR);
-					numeratorParts.add(logScore);
-				}
-				double val = Tools.logSumOfExponentials(numeratorParts);
-
-				String key = tagList.get(i) + "|" + word;
-				generalEmissionProbabilities.put(key, val);
-
-				// evaluate the neighbors
-				ArrayList<String> neighbors = getNeighbors(word);
-				ArrayList<Double> ZParts = new ArrayList<Double>();
-
-				for (String neighbor : neighbors) {
-					candidates = getCandidates(neighbor, false);
-					for (Pair<String, Integer> parent : candidates) {
-						HashMap<Integer, Double> features = getFeatures(neighbor, parent.getKey(), parent.getValue());
-
-						logScore = Tools.featureWeightProduct(features);
-
-						if (parent.getRight() == STOP)
-							logScore += Math.log(STOP_FACTOR);
-
-						ZParts.add(logScore);
+					double sum = 0;
+					
+					for (int featureIndex : features.keySet()) {
+						String feature = index2Feature.get(featureIndex);
+						
+						if (feature.startsWith(tagList.get(i)) || !feature.contains("|")) {
+							sum += coarseProbabilities.get(feature);
+						}
 					}
+					
+					wordProbList.add(sum);
 				}
-				double logZ = Tools.logSumOfExponentials(ZParts);
+				generalEmissionProbabilities.put(tagList.get(i) + "|" + word, Math.exp(Tools.logSumOfExponentials(wordProbList)));
+				
+				ArrayList<String> neighbors = JointModel.getNeighbors(word);
+				ArrayList<Double> wordProbListNeg = new ArrayList<>();
+				for (String neighbor : neighbors) {
 
-				generalEmissionProbabilitiesNegative.put(key, logZ);
+					for (Pair<String, Integer> candidate : getCandidates(neighbor, false)) {
+						HashMap<Integer, Double> features = getFeatures(neighbor, candidate.getKey(),
+								candidate.getValue());
 
+						double sum = 0;
+						
+						for (int featureIndex : features.keySet()) {
+							String feature = index2Feature.get(featureIndex);
+
+							if (feature.startsWith(tagList.get(i)) || !feature.contains("|")) {
+								sum += coarseProbabilities.get(feature);
+							}
+						}
+						wordProbListNeg.add(sum);
+					}
+
+				}
+				generalEmissionProbabilitiesNegative.put(tagList.get(i) + "|" + word, Math.exp(Tools.logSumOfExponentials(wordProbListNeg)));
 			}
-
 		}
 	}
 

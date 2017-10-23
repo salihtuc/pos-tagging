@@ -11,6 +11,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 import lbfgsb.DifferentiableFunction;
 import lbfgsb.FunctionValues;
 
@@ -117,6 +119,10 @@ public class Function implements DifferentiableFunction {
 		HashMap<String, Double> gradTransitionProbabilities = new HashMap<>();
 		HashMap<String, Double> gradInitialProbabilities = new HashMap<>();
 		HashMap<String, Double> gradEmissionProbabilities = new HashMap<>();
+		
+		HashMap<String, Double> gradCoarseProbabilities = new HashMap<>();
+		HashMap<String, Double> gradCoarseProbabilitiesNegative = new HashMap<>();
+		HashMap<String, Double> coarseWordProbabilities = new HashMap<>();
 
 		for (int i = 0; i < JointModel.tagSize; i++) {
 			for (int j = 0; j < JointModel.tagSize; j++) {
@@ -283,117 +289,138 @@ public class Function implements DifferentiableFunction {
 
 			/* re-estimation of emission probabilities NEW VERSION */
 			
-			HashMap<String, Double> originalMap = new HashMap<>();
-			HashMap<String, Double> negativeMap = new HashMap<>();
-			
-			HashMap<String, Double> originalwordsNum = new HashMap<String, Double>();
-			HashMap<String, Double> neighborsWord = new HashMap<String, Double>();
-
-			ArrayList<Double> listNum = new ArrayList<>();
-			ArrayList<Double> listDenom = new ArrayList<>();
-
-			double emissionOriginalDenom = 0.0;
-			double emissionNeighborDenom = 0.0;
-
 			for (HashMap<Integer, HashMap<Integer, Node>> globalMap : JointModel.sentenceGlobals) {
 
 				for (int a = 0; a < globalMap.size(); a++) {
 					HashMap<Integer, Node> lattice = globalMap.get(a);
 					for (int k = 1; k < lattice.size(); k++) {
 						Node node = lattice.get(k);
+						
+						if(a == 0) {
+							double logScore;
+							for (Pair<String, Integer> candidate : JointModel.getCandidates(node.word, false)) {
+								HashMap<Integer, Double> features = JointModel.getFeatures(node.word,
+										candidate.getKey(), candidate.getValue());
+								logScore = Tools.featureWeightProduct(features);
 
-							double g = gamma(i, node);
+								for (int featureIndex : features.keySet()) {
+									String feature = JointModel.index2Feature.get(featureIndex);
+									
+									if (feature.startsWith(JointModel.tagList.get(i))) {
+										if (coarseWordProbabilities.containsKey(feature)) {
+											double[] logArray = new double[2];
+											logArray[0] = coarseWordProbabilities.get(feature);
+											logArray[1] = logScore;
 
-							if (a == 0) {
-								if (originalwordsNum.containsKey(node.word)) {
-									ArrayList<Double> list = new ArrayList<>();
+											coarseWordProbabilities.put(feature, Tools.logSumOfExponentials(logArray));
+										} else {
+											coarseWordProbabilities.put(feature, logScore);
+										}
+									}
+									
+									if(!feature.contains("|") && i == 0) {
+										if (coarseWordProbabilities.containsKey(feature)) {
+											double[] logArray = new double[2];
+											logArray[0] = coarseWordProbabilities.get(feature);
+											logArray[1] = logScore;
 
-									list.add(originalwordsNum.get(node.word));
-									list.add(g);
-
-									originalwordsNum.put(node.word, Tools.logSumOfExponentials(list));
-
-								} else {
-									originalwordsNum.put(node.word, g);
+											coarseWordProbabilities.put(feature, Tools.logSumOfExponentials(logArray));
+										} else {
+											coarseWordProbabilities.put(feature, logScore);
+										}
+									}
 								}
-								listNum.add(g);
-
-							} else {
-								if (neighborsWord.containsKey(node.word)) {
-									ArrayList<Double> list = new ArrayList<>();
-
-									list.add(neighborsWord.get(node.word));
-									list.add(g);
-
-									neighborsWord.put(node.word, Tools.logSumOfExponentials(list));
-
-								} else {
-									neighborsWord.put(node.word, g);
-								}
-
-								listDenom.add(g);
 							}
 
+							for (String feature : coarseWordProbabilities.keySet()) {
+								String key = JointModel.tagList.get(i) + "|" + node.word;
+								double prob = divide(Math.exp(coarseWordProbabilities.get(feature)),
+										JointModel.generalEmissionProbabilities.get(key));
+
+								if (gradCoarseProbabilities.containsKey(feature)) {
+									double val = gradCoarseProbabilities.get(feature);
+
+									gradCoarseProbabilities.put(feature, prob * val); // TODO
+								} else {
+									gradCoarseProbabilities.put(feature, prob);
+								}
+							}
+							
+							coarseWordProbabilities.clear();
+						}
+						else {
+							double logScore;
+							ArrayList<String> neighbors = JointModel.getNeighbors(node.word);
+					        for(String neighbor : neighbors) {
+					            for(Pair<String, Integer> candidate : JointModel.getCandidates(neighbor, false)) {
+					                HashMap<Integer, Double> features = JointModel.getFeatures(neighbor, candidate.getKey(), candidate.getValue());
+					                logScore = Tools.featureWeightProduct(features);
+					                
+									for (int featureIndex : features.keySet()) {
+										String feature = JointModel.index2Feature.get(featureIndex);
+										if (feature.startsWith(JointModel.tagList.get(i))) {
+											if (coarseWordProbabilities.containsKey(feature)) {
+												double[] logArray = new double[2];
+												logArray[0] = coarseWordProbabilities.get(feature);
+												logArray[1] = logScore;
+
+												coarseWordProbabilities.put(feature,
+														Tools.logSumOfExponentials(logArray));
+											} else {
+												coarseWordProbabilities.put(feature, logScore);
+											}
+										}
+										if(!feature.contains("|") && i == 0) {
+											if (coarseWordProbabilities.containsKey(feature)) {
+												double[] logArray = new double[2];
+												logArray[0] = coarseWordProbabilities.get(feature);
+												logArray[1] = logScore;
+
+												coarseWordProbabilities.put(feature,
+														Tools.logSumOfExponentials(logArray));
+											} else {
+												coarseWordProbabilities.put(feature, logScore);
+											}
+										}
+									}
+					            }
+					        }
+					        
+					        for(String neighborWord : JointModel.getNeighbors(node.word)) {
+						        for (String feature : coarseWordProbabilities.keySet()) {
+									String key = JointModel.tagList.get(i) + "|" + neighborWord;
+									double prob = divide(Math.exp(coarseWordProbabilities.get(feature)),
+											JointModel.generalEmissionProbabilitiesNegative.get(key));
+	
+									if (gradCoarseProbabilitiesNegative.containsKey(feature)) {
+										double val = gradCoarseProbabilitiesNegative.get(feature);
+	
+										gradCoarseProbabilitiesNegative.put(feature, prob * val); // TODO
+									} else {
+										gradCoarseProbabilitiesNegative.put(feature, prob);
+									}
+								}
+					        }
+							
+							coarseWordProbabilities.clear();
+						}
 					}
 				}
 			}
-			
-			emissionOriginalDenom += Tools.logSumOfExponentials(listNum);
-			emissionNeighborDenom += Tools.logSumOfExponentials(listDenom);
-			listNum.clear();
-			listDenom.clear();
-			for (String s : originalwordsNum.keySet()) {
-				double valOrg = originalwordsNum.get(s);
-
-				if (originalMap.containsKey(s)) {
-
-					ArrayList<Double> list = new ArrayList<>();
-
-					list.add(originalMap.get(s));
-					list.add((valOrg - emissionOriginalDenom));
-
-					originalMap.put(s, Tools.logSumOfExponentials(list));
-
-				} else {
-					originalMap.put(s, (valOrg - emissionOriginalDenom));
-				}
-
-				double valNeg = neighborsWord.get(s);
-
-				if (negativeMap.containsKey(s)) {
-
-					ArrayList<Double> list = new ArrayList<>();
-
-					list.add(negativeMap.get(s));
-					list.add((valNeg - emissionNeighborDenom));
-
-					negativeMap.put(s, Tools.logSumOfExponentials(list));
-
-				} else {
-					negativeMap.put(s, (valNeg - emissionNeighborDenom));
-				}
-			}
-			originalwordsNum.clear();
-			neighborsWord.clear();
-
-			Iterator<Entry<String, Double>> originals = originalMap.entrySet().iterator();
-			Iterator<Entry<String, Double>> neighbors = negativeMap.entrySet().iterator();
-			while (originals.hasNext()) {
-				Entry<String, Double> pairs = originals.next();
-				Double firstVal = (Double) pairs.getValue();
-				Entry<String, Double> pairs2 = neighbors.next();
-				Double secondVal = (Double) pairs2.getValue();
-
-				String key = JointModel.tagList.get(i) + "|" + pairs.getKey();
-
-				gradEmissionProbabilities.put(key, Math.exp(firstVal) - Math.exp(secondVal));
-
-			}
-			
-			originalMap.clear();
-			negativeMap.clear();
 		}
 
+		for(String feature : gradCoarseProbabilities.keySet()) {
+			double prob;
+			
+			if(gradCoarseProbabilitiesNegative.containsKey(feature)) {
+				prob = gradCoarseProbabilities.get(feature) - gradCoarseProbabilitiesNegative.get(feature);
+			}
+			else {
+				prob = gradCoarseProbabilities.get(feature);
+			}
+			gradEmissionProbabilities.put(feature, prob);
+		}
+		
 		grad = Main.createGradArray(gradTransitionProbabilities, gradInitialProbabilities, gradEmissionProbabilities,
 				JointModel.gradFeature2Index);
 
@@ -437,19 +464,6 @@ public class Function implements DifferentiableFunction {
 				+ Math.log(next.beta.get(j));
 
 		return num;
-	}
-
-	/** computes gamma(i, node) */
-
-	public double gamma(int i, Node node) {
-		double num = 0.0;
-		num = Math.log(node.alpha.get(i)) + Math.log(node.beta.get(i));
-
-		return num;
-	}
-	
-	public double gammaEmission() {
-		
 	}
 
 	/** divides two doubles. (0 / 0 = 0!) && (1 / 0 = 0!) */

@@ -36,12 +36,6 @@ public class Main {
 		
 		JointModel.initialize();
 
-		
-		// TODO
-		JointModel.tagFeatureWeights = JointModel.createWeightsArray(JointModel.transitionProbabilities, JointModel.initialProbabilities, JointModel.coarseProbabilities,
-				JointModel.gradFeature2Index);
-
-		
 		/* LBFGS-B part */
 		Minimizer alg = new Minimizer();
 		alg.getStopConditions().setMaxIterations(10000);
@@ -68,8 +62,12 @@ public class Main {
 			for (String s : JointModel.initialProbabilities.keySet()) {
 				Main.pw.println(s + " " + JointModel.initialProbabilities.get(s));
 			}
+			for (String s : JointModel.coarseProbabilities.keySet()) {
+				Main.pw.println(s + " " + JointModel.coarseProbabilities.get(s));
+			}
+			
 			for (String s : JointModel.generalEmissionProbabilities.keySet()) {
-				Main.pw.println(s + " " + JointModel.generalEmissionProbabilities.get(s));
+				System.out.println(s + " " + JointModel.generalEmissionProbabilities.get(s));
 			}
 
 		} catch (LBFGSBException e) {
@@ -104,36 +102,6 @@ public class Main {
 		return weights;
 	}
 	
-//	private static void fillInitialFromFile(String fileName) {
-//		try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
-//			String line;
-//			while ((line = br.readLine()) != null) {
-//				String[] values = line.split(" ");
-//				String key = values[0];
-//				double prob = Double.parseDouble(values[1]);
-//
-//				if (key.endsWith("_t")) { // Transition or Initial
-//
-//					key = key.substring(0, key.length() - 2);
-//
-//					if (key.contains("<s>") || key.contains("</s>")) {
-//						initialProbabilities.put(key, prob);
-//					} else {
-//						transitionProbabilities.put(key, prob);
-//					}
-//				} else {
-//					if (emissionProbabilities.containsKey(key)) {
-//						emissionProbabilities.put(key, prob);
-//					}
-//				}
-//			}
-//		} catch (FileNotFoundException e) {
-//			e.printStackTrace();
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
-//	}
-
 	// This function is using for creating lattices.
 	static int sentenceCount = 0;
 
