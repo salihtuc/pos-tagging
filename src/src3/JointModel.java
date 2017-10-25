@@ -103,6 +103,8 @@ public class JointModel {
 	static LinkedHashSet<String> suffixes = new LinkedHashSet<String>();
 	static HashMap<String, Map<String, Double>> suffixNeighbor = new HashMap<String, Map<String, Double>>();
 	static HashMap<String, Map<String, Double>> prefixNeighbor = new HashMap<String, Map<String, Double>>();
+	static HashMap<String, Double> suffixDist = new HashMap<String, Double>();
+	static HashMap<String, Double> prefixDist = new HashMap<String, Double>();
 
 	// weights
 	public static double[] tagFeatureWeights = null; // Feature sized weight array that we use in LBFGS-B
