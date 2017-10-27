@@ -336,6 +336,9 @@ public class JointModel {
 					if (generalEmissionProbabilities.containsKey(key)) {
 						generalEmissionProbabilities.put(key, prob);
 					}
+					if(generalEmissionProbabilitiesNegative.containsKey(key)) {
+						generalEmissionProbabilitiesNegative.put(key, prob);
+					}
 				}
 			}
 		} catch (FileNotFoundException e) {
@@ -1365,8 +1368,12 @@ public class JointModel {
 
 		// max dot feature
 		if (DOT && word.length() >= 2) {
-			double maxDot = word2MaxDot.get(word);
-			Tools.addFeature(features, "STP_COS_" + (int) (10 * maxDot), 1., "other");
+
+			if(word2MaxDot.containsKey(word)) {
+				double maxDot = word2MaxDot.get(word);	//XXX	if eklendi.
+				
+				Tools.addFeature(features, "STP_COS_" + (int) (10 * maxDot), 1., "other");
+			}
 		}
 
 		// length feature

@@ -18,12 +18,12 @@ public class Viterbi {
 	static int smoothed = 0;
 	static double sumScore = 0;
 	
-	static HashMap<String, String> tagWord2Morph = new HashMap<>();
-	static HashMap<String, Double> tagWord2Score = new HashMap<>();
+	public static HashMap<String, String> tagWord2Morph = new HashMap<>();
+	public static HashMap<String, Double> tagWord2Score = new HashMap<>();
 
-	private static void tagging(String sysoutput) throws IOException {
+	@SuppressWarnings("resource")
+	protected static void tagging(String sysoutput) throws IOException {
 		int countWord = 0;
-		int correctTag = 0;
 		int cs = 0;
 
 		BufferedWriter output = null;
@@ -40,10 +40,10 @@ public class Viterbi {
 			for (int i = 0; i < words.length; i++) {
 
 				String word = words[i];
-				if (!JointModel.allWords.contains(word)) {
-					//// System.out.println(word+" smoothed");
-					leplaceSmoothing(word, String.valueOf(i));
-				}
+//				if (!JointModel.allWords.contains(word)) { //XXX
+//					//// System.out.println(word+" smoothed");
+//					leplaceSmoothing(word, String.valueOf(i));
+//				}
 
 				for (int j = 0; j < JointModel.tagSize; j++) {
 					//// System.out.println(statess.get(j)+" "+word);
@@ -73,7 +73,7 @@ public class Viterbi {
 				String cek = JointModel.tagList.get(idx);
 				countWord++;
 
-				tag = words[i] + "/" + cek + " " + tag;
+				tag = words[i] + "|" + tagWord2Morph.get(words[i] + "|" + cek) + "/" + cek + " " + tag;
 
 				idx = vitPrev[idx][i];
 
@@ -86,6 +86,8 @@ public class Viterbi {
 		System.out.println("Total evaluate sentence: " + cs);
 		System.out.println("Total smoothed words: " + smoothed);
 		System.out.println("Total evaluate words: " + countWord);
+		
+		output.close();
 
 	}
 
@@ -125,7 +127,7 @@ public class Viterbi {
 		// f2W.put(JointModel.index2Feature.get(featureIndex),
 		// JointModel.feature2Weight.get(JointModel.index2Feature.get(featureIndex)));
 
-		System.out.println(JointModel.feature2Index);
+//		System.out.println(JointModel.feature2Index);
 
 		return new ImmutablePair<Pair<String,Integer>, Double>(bestParentAndType, divide(Math.exp(bestScore), Z));
 	}
@@ -261,7 +263,7 @@ public class Viterbi {
 				sum += value + Double.MIN_VALUE;
 //				sum += value + -1*Double.MAX_VALUE;
 			}
-		}
+		} 
 
 		while (it.hasNext()) {
 			Map.Entry pair = (Map.Entry) it.next();
@@ -284,14 +286,26 @@ public class Viterbi {
 	private static double vitScore(String tag, String word, int idxWord, int idxTag) {
 		double max = 0.0;
 		double emProb = Double.MIN_VALUE;
-
+		
 		String emit = tag + "|" + word;
 		
-		if (tagWord2Score.keySet().contains(emit))
-			emProb = tagWord2Score.get(emit);
+		System.out.println(emit);
+		
+		if(word.equals("<start>") || word.equals("<end>")) {
+			emProb = 1.0;
+		}
 		else {
-			sumScore = 0;
-			
+			if (tagWord2Score.keySet().contains(emit))
+				emProb = tagWord2Score.get(emit);
+			else {
+				String segmentedWord = segment(word, tag);
+				
+				tagWord2Morph.put(emit, segmentedWord);
+				tagWord2Score.put(emit, sumScore);
+				
+				sumScore = 0;
+				emProb = tagWord2Score.get(emit);
+			}
 		}
 		
 		if (idxWord == 0) {

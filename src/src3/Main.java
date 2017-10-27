@@ -66,13 +66,19 @@ public class Main {
 				Main.pw.println(s + " " + JointModel.coarseProbabilities.get(s));
 			}
 			
-			for (String s : JointModel.generalEmissionProbabilities.keySet()) {
-				System.out.println(s + " " + JointModel.generalEmissionProbabilities.get(s));
-			}
+//			for (String s : JointModel.generalEmissionProbabilities.keySet()) {
+//				System.out.println(s + " " + JointModel.generalEmissionProbabilities.get(s));
+//			}
 
+			Viterbi.tagging("outViterbi.txt");
+			
 		} catch (LBFGSBException e) {
 			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
+		
 		pw.close();
 	}
 
