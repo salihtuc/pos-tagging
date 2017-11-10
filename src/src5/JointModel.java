@@ -97,7 +97,7 @@ public class JointModel {
 	public static HashMap<String, Integer> tagFeature2Index = new HashMap<>();
 	public static HashMap<String, Integer> gradFeature2Index = new HashMap<>();
 	public static HashMap<String, ArrayList<Integer>> feature2CoarseIndex = new HashMap<>();
-	
+
 	// affixes
 	static LinkedHashSet<String> prefixes = new LinkedHashSet<String>();
 	static LinkedHashSet<String> suffixes = new LinkedHashSet<String>();
@@ -127,7 +127,7 @@ public class JointModel {
 			fillEmissionMap();
 
 			fillInitialFromFile("initialProb.txt");
-			
+
 			selectMostFrequentAffixes();
 
 			System.err.println("Initializing features....");
@@ -141,12 +141,13 @@ public class JointModel {
 					}
 				}
 			}
-			
-//			fillCoarseMap();
+
+			// fillCoarseMap();
 
 			initLattice();
-			
-			tagFeatureWeights = createWeightsArray(transitionProbabilities, initialProbabilities, coarseProbabilities, gradFeature2Index);
+
+			tagFeatureWeights = createWeightsArray(transitionProbabilities, initialProbabilities, coarseProbabilities,
+					gradFeature2Index);
 
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -164,7 +165,7 @@ public class JointModel {
 
 				if (line.split(" ").length > 2) {
 					sentences.add(start + line.toLowerCase());
-//					fillGeneralEmissions(line.toLowerCase());
+					// fillGeneralEmissions(line.toLowerCase());
 
 					allWords.addAll(Arrays.asList((line.toLowerCase()).trim().split(" ")));
 				}
@@ -176,7 +177,7 @@ public class JointModel {
 			for (String s : uniqueValues) {
 				word2Cnt.put(s, Collections.frequency(allWords, s));
 			}
-//			System.out.println(word2Cnt);
+			// System.out.println(word2Cnt);
 
 			allWords.clear();
 			allWords.addAll(uniqueValues);
@@ -284,7 +285,7 @@ public class JointModel {
 			initialProbabilities.put(key2, value);
 		}
 	}
-	
+
 	private static void fillEmissionMap() {
 		Random r = new Random();
 		double value = 0.000000001; // For zero values
@@ -293,24 +294,24 @@ public class JointModel {
 		for (int i = 0; i < (tagSize); i++) {
 			for (String word : allWords) {
 				String key;
-				
-				for(String neighbor : getNeighbors(word)) {
+
+				for (String neighbor : getNeighbors(word)) {
 					key = (tagList.get(i) + "|" + neighbor);
 					generalEmissionProbabilitiesNegative.put(key, value);
 				}
-				
+
 				key = (tagList.get(i) + "|" + word);
 				generalEmissionProbabilities.put(key, value);
 			}
 		}
 	}
-	
+
 	private static void fillCoarseMap() {
-		for(String feature : feature2Index.keySet()) {
+		for (String feature : feature2Index.keySet()) {
 			coarseProbabilities.put(feature, 0.0);
 		}
 	}
-	
+
 	private static void fillInitialFromFile(String fileName) {
 		try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
 			String line;
@@ -332,7 +333,7 @@ public class JointModel {
 					if (generalEmissionProbabilities.containsKey(key)) {
 						generalEmissionProbabilities.put(key, prob);
 					}
-					if(generalEmissionProbabilitiesNegative.containsKey(key)) {
+					if (generalEmissionProbabilitiesNegative.containsKey(key)) {
 						generalEmissionProbabilitiesNegative.put(key, prob);
 					}
 				}
@@ -839,23 +840,24 @@ public class JointModel {
 			for (String word : allWords) {
 				ArrayList<Double> wordProbList = new ArrayList<>();
 				for (Pair<String, Integer> candidate : getCandidates(word, false)) {
-					HashMap<Integer, Double> features = getFeatures(word, candidate.getKey(),
-							candidate.getValue());
+					HashMap<Integer, Double> features = getFeatures(word, candidate.getKey(), candidate.getValue());
 
-					double sum = 0;
+//					double sum = Tools.featureWeightProduct(features);
+
+					 double sum = 0;
 					
-					for (int featureIndex : features.keySet()) {
-						String feature = index2Feature.get(featureIndex);
+					 for (int featureIndex : features.keySet()) {
+						 String feature = index2Feature.get(featureIndex);
 						
-						if (feature.startsWith(tagList.get(i)) || !feature.contains("|")) {
-							sum += coarseProbabilities.get(feature);
-						}
-					}
-					
+						 if (feature.startsWith(tagList.get(i)) || !feature.contains("|")) {
+							 sum += (coarseProbabilities.get(feature) * JointModel.weights.get(feature));
+						 }
+					 }
+
 					wordProbList.add(sum);
 				}
 				generalEmissionProbabilities.put(tagList.get(i) + "|" + word, Tools.logSumOfExponentials(wordProbList));
-				
+
 				ArrayList<String> neighbors = JointModel.getNeighbors(word);
 				ArrayList<Double> wordProbListNeg = new ArrayList<>();
 				for (String neighbor : neighbors) {
@@ -864,22 +866,29 @@ public class JointModel {
 						HashMap<Integer, Double> features = getFeatures(neighbor, candidate.getKey(),
 								candidate.getValue());
 
-						double sum = 0;
-						
-						for (int featureIndex : features.keySet()) {
-							String feature = index2Feature.get(featureIndex);
+//						double sum = Tools.featureWeightProduct(features);
 
-							if (feature.startsWith(tagList.get(i)) || !feature.contains("|")) {
-								sum += coarseProbabilities.get(feature);
-							}
-						}
+						 double sum = 0;
+						
+						 for (int featureIndex : features.keySet()) {
+							 String feature = index2Feature.get(featureIndex);
+							
+							 if (feature.startsWith(tagList.get(i)) || !feature.contains("|")) {
+								 sum += (coarseProbabilities.get(feature) * JointModel.weights.get(feature));
+							 }
+						 }
 						wordProbListNeg.add(sum);
 					}
 
 				}
-				generalEmissionProbabilitiesNegative.put(tagList.get(i) + "|" + word, Tools.logSumOfExponentials(wordProbListNeg));
+				generalEmissionProbabilitiesNegative.put(tagList.get(i) + "|" + word,
+						Tools.logSumOfExponentials(wordProbListNeg));
 			}
 		}
+		
+//		normalizeGeneralEmissions(generalEmissionProbabilities);
+//		normalizeGeneralEmissions(generalEmissionProbabilitiesNegative);
+		
 	}
 
 	protected static double[] createWeightsArray(HashMap<String, Double> transitionMap,
@@ -940,8 +949,8 @@ public class JointModel {
 
 		Matcher m = p.matcher(word);
 		boolean b = m.find();
-		
-		if(!b) {
+
+		if (!b) {
 			word2Neighbors.put(word, neighbors);
 
 			return neighbors;
@@ -994,14 +1003,14 @@ public class JointModel {
 
 		Matcher m = p.matcher(word);
 		boolean b = m.find();
-		
-		if(!b) {
+
+		if (!b) {
 			candidates.add(new MutablePair<String, Integer>(word, PUNCTUATION));
 			candidates.add(new MutablePair<String, Integer>(word, STOP));
-			
+
 			return candidates;
 		}
-		
+
 		for (int i = 1; i < word.length(); i++) {
 			// suffix case
 			String parent = word.substring(0, i);
@@ -1087,22 +1096,21 @@ public class JointModel {
 				word2MaxDot.put(word, cosine);
 		}
 
-		if (DOT)
-			Tools.addFeature(features, "DOT_" + word + "_" + parent, cosine, "other?");
+//		if (DOT)
+//			Tools.addFeature(features, "DOT_" + word + "_" + parent, cosine, "other?");
 
 		// affix
 		String affix = "";
 		String inVocab = "";
 
-		if (word2Cnt.containsKey(parent) && word2Cnt.get(parent) > HEURISTIC_FREQ_THRESHOLD) {
-			Tools.addFeature(features, "_IV_" + word + "_" + parent, Math.log(word2Cnt.get(parent)), "other?");
-		} else
-			Tools.addFeature(features, "_OOV_" + word, 1., "other");
+//		if (word2Cnt.containsKey(parent) && word2Cnt.get(parent) > HEURISTIC_FREQ_THRESHOLD) {
+//			Tools.addFeature(features, "_IV_" + word + "_" + parent, Math.log(word2Cnt.get(parent)), "other?");
+//		} else
+//			Tools.addFeature(features, "_OOV_" + word, 1., "other");
 
-		if(type == PUNCTUATION) {
+		if (type == PUNCTUATION) {
 			Tools.addFeature(features, "PUNCTUATION_" + word, 1, "tagDependent");
-		}
-		else if (type == SUFFIX) {
+		} else if (type == SUFFIX) {
 			// suffix case
 			affix = word.substring(parent.length());
 			if (affix.length() > MAX_AFFIX_LENGTH || !suffixes.contains(affix))
@@ -1280,7 +1288,7 @@ public class JointModel {
 		}
 
 		// BIAS feature
-		Tools.addFeature(features, "BIAS", 1., "other");
+//		Tools.addFeature(features, "BIAS", 1., "other");
 
 		// cache features
 		cacheFeatures(word, parent, type, features);
@@ -1363,20 +1371,20 @@ public class JointModel {
 		}
 
 		// max dot feature
-		if (DOT && word.length() >= 2) {
-
-			if(word2MaxDot.containsKey(word)) {
-				double maxDot = word2MaxDot.get(word);	//XXX	if eklendi.
-				
-				Tools.addFeature(features, "STP_COS_" + (int) (10 * maxDot), 1., "other");
-			}
-		}
+//		if (DOT && word.length() >= 2) {
+//
+//			if (word2MaxDot.containsKey(word)) {
+//				double maxDot = word2MaxDot.get(word); // XXX if eklendi.
+//
+//				Tools.addFeature(features, "STP_COS_" + (int) (10 * maxDot), 1., "other");
+//			}
+//		}
 
 		// length feature
 		Tools.addFeature(features, "STP_LEN_" + word.length(), 1., "other");
 
 		// BIAS feature
-		Tools.addFeature(features, "BIAS", 1., "other");
+//		Tools.addFeature(features, "BIAS", 1., "other");
 
 		return features;
 	}
@@ -1421,10 +1429,9 @@ public class JointModel {
 				}
 			} else if (decide.equals("emission")) {
 				if (coarseProbabilities.containsKey(s)) {
-					if(s.startsWith(tag + "|")) {
+					if (s.startsWith(tag + "|")) {
 						returnFeatures.put(index, weights[index]);
-					}
-					else if(tag.equals("other") && !s.contains("|")) {
+					} else if (tag.equals("other") && !s.contains("|")) {
 						returnFeatures.put(index, weights[index]);
 					}
 				}
@@ -1458,10 +1465,10 @@ public class JointModel {
 	public static void normalizeFeatures(double[] point, String decide) {
 		for (int i = 0; i < tagSize + 1; i++) {
 			HashMap<Integer, Double> features = new HashMap<>();
-			
-			if(i < tagSize)
+
+			if (i < tagSize)
 				features = returnTagFeatures(tagList.get(i), point, gradFeature2Index, decide);
-			else if(decide.equals("emission"))
+			else if (decide.equals("emission"))
 				features = returnTagFeatures("other", point, gradFeature2Index, decide);
 			else
 				break;
@@ -1471,6 +1478,40 @@ public class JointModel {
 			for (int featureIndex : features.keySet()) {
 				// point[featureIndex] = divide(Math.exp(point[featureIndex]), sum);
 				point[featureIndex] = Tools.divide((point[featureIndex]), sum);
+			}
+		}
+	}
+
+	// XXX
+	public static HashMap<String, Double> returnTagEmissionsSum(HashMap<String, Double> generalMap) {
+		HashMap<String, Double> tagFeatureSum = new HashMap<>();
+		
+		for(String feature : generalMap.keySet()) {
+			String tag = feature.substring(0, feature.indexOf("|"));
+			
+			if(tagFeatureSum.containsKey(tag)) {
+				double newVal = tagFeatureSum.get(tag) + generalMap.get(feature);
+				tagFeatureSum.put(tag, newVal);
+			}
+			else {
+				tagFeatureSum.put(tag, generalMap.get(feature));
+			}
+		}
+		
+		return tagFeatureSum;
+	}
+
+	// XXX
+	public static void normalizeGeneralEmissions(HashMap<String, Double> generalMap) {
+		HashMap<String, Double> tagFeatureSum = returnTagEmissionsSum(generalMap);
+		
+		for(String feature : generalMap.keySet()) {
+			String tag = feature.substring(0, feature.indexOf("|"));
+			
+			if(tagFeatureSum.containsKey(tag)) {
+				double newVal = Tools.divide(generalMap.get(feature), tagFeatureSum.get(tag));
+				
+				generalMap.put(feature, newVal);
 			}
 		}
 	}

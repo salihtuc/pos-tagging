@@ -334,11 +334,14 @@ public class Function implements DifferentiableFunction {
 
 							for (String feature : coarseWordProbabilities.keySet()) {
 								String key = JointModel.tagList.get(i) + "|" + node.word;
-//								double prob = divide(Math.exp(coarseWordProbabilities.get(feature)),
+//								double prob = divide(Math.exp(coarseWordProbabilities.get(feature)),	// XXX
 //										JointModel.generalEmissionProbabilities.get(key));
 								
 								double prob = Math.exp(coarseWordProbabilities.get(feature) - JointModel.generalEmissionProbabilities.get(key));
 
+//								double featureWeightProd = coarseWordProbabilities.get(feature) * JointModel.weights.get(feature);
+//								double prob = Math.exp(featureWeightProd - JointModel.generalEmissionProbabilities.get(key));
+								
 								if (gradCoarseProbabilities.containsKey(feature)) {
 									double val = gradCoarseProbabilities.get(feature);
 
@@ -350,7 +353,7 @@ public class Function implements DifferentiableFunction {
 							
 							coarseWordProbabilities.clear();
 						}
-						else {
+						else {	// Negatives
 							double logScore;
 							ArrayList<String> neighbors = JointModel.getNeighbors(node.word);
 					        for(String neighbor : neighbors) {
@@ -388,13 +391,16 @@ public class Function implements DifferentiableFunction {
 					            }
 					        }
 					        
-					        for(String neighborWord : JointModel.getNeighbors(node.word)) {
+//					        for(String neighborWord : JointModel.getNeighbors(node.word)) {
 						        for (String feature : coarseWordProbabilities.keySet()) {
-									String key = JointModel.tagList.get(i) + "|" + neighborWord;
-//									double prob = divide(Math.exp(coarseWordProbabilities.get(feature)),
+									String key = JointModel.tagList.get(i) + "|" + node.word;
+//									double prob = divide(Math.exp(coarseWordProbabilities.get(feature)),	// XXX
 //											JointModel.generalEmissionProbabilitiesNegative.get(key));
 									
 									double prob = Math.exp(coarseWordProbabilities.get(feature) - JointModel.generalEmissionProbabilitiesNegative.get(key));
+									
+//									double featureWeightProd = coarseWordProbabilities.get(feature) * JointModel.weights.get(feature);
+//									double prob = Math.exp(featureWeightProd - JointModel.generalEmissionProbabilitiesNegative.get(key));
 	
 									if (gradCoarseProbabilitiesNegative.containsKey(feature)) {
 										double val = gradCoarseProbabilitiesNegative.get(feature);
@@ -404,7 +410,7 @@ public class Function implements DifferentiableFunction {
 										gradCoarseProbabilitiesNegative.put(feature, prob);
 									}
 								}
-					        }
+//					        }
 							
 							coarseWordProbabilities.clear();
 						}
