@@ -41,7 +41,7 @@ public class Tools {
 			int index = JointModel.feature2Index.size();
 			JointModel.feature2Index.put(feature, index);
 			JointModel.index2Feature.add(feature);
-			JointModel.weights.put(feature, 0.0001);
+//			JointModel.weights.put(feature, 0.0001);
 
 			JointModel.coarseProbabilities.put(feature, 0.0001);
 
@@ -120,8 +120,8 @@ public class Tools {
 		if (features == null || features.size() == 0)
 			return 0.;
 		for (int i : features.keySet())
-			if (i < JointModel.weights.size()) {// check if weight exists for the feature
-				sum += features.get(i) * JointModel.weights.get(JointModel.index2Feature.get(i));
+			if (i < JointModel.coarseProbabilities.size()) {// check if weight exists for the feature
+				sum += features.get(i) * JointModel.coarseProbabilities.get(JointModel.index2Feature.get(i));
 			}
 		return sum;
 	}
@@ -136,13 +136,13 @@ public class Tools {
 			String feature = JointModel.index2Feature.get(i);
 
 			if (feature.startsWith(tag + "|")) {	// Tag dependent
-				if (i < JointModel.weights.size()) { // check if weight exists for the feature
-					sum += features.get(i) * JointModel.weights.get(feature);
+				if (i < JointModel.coarseProbabilities.size()) { // check if weight exists for the feature
+					sum += features.get(i) * JointModel.coarseProbabilities.get(feature);
 				}
 			}
 			else if(!feature.contains("|")) {	// Not dependent
-				if (i < JointModel.weights.size()) { // check if weight exists for the feature
-					sum += features.get(i) * JointModel.weights.get(feature);
+				if (i < JointModel.coarseProbabilities.size()) { // check if weight exists for the feature
+					sum += features.get(i) * JointModel.coarseProbabilities.get(feature);
 				}
 			}
 		}

@@ -6,6 +6,8 @@
  * */
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -29,10 +31,20 @@ public class Function implements DifferentiableFunction {
 
 	@Override
 	public FunctionValues getValues(double[] point) {
+		
+		System.out.println("After lbfgs");
+		findMinAndMax(point);
 
-		JointModel.normalizeFeatures(point, "transition");
-		JointModel.normalizeFeatures(point, "initial");
-		JointModel.normalizeFeatures(point, "emission");
+//		JointModel.normalizeFeatures(point, "transition");
+//		JointModel.normalizeFeatures(point, "initial");
+//		JointModel.normalizeFeatures(point, "emission");
+//		
+//		System.out.println("After 1st normalization");
+//		findMinAndMax(point);
+		
+		if(iterCount == 0) {
+			JointModel.updateGeneralEmissions();
+		}
 		
 		if (iterCount != 0) {
 
@@ -59,6 +71,16 @@ public class Function implements DifferentiableFunction {
 		iterCount++;
 
 		FunctionValues fv = new FunctionValues(functionValue(point), gradient(point));
+		
+		System.out.println("After gradient");
+		findMinAndMax(fv.gradient);
+		
+//		JointModel.normalizeFeatures(fv.gradient, "transition");
+//		JointModel.normalizeFeatures(fv.gradient, "initial");
+//		JointModel.normalizeFeatures(fv.gradient, "emission");
+//		
+//		System.out.println("After 2nd normalization"); 
+//		findMinAndMax(fv.gradient);
 		
 		System.out.println("Iteration: " + iterCount);
 
@@ -297,11 +319,15 @@ public class Function implements DifferentiableFunction {
 						Node node = lattice.get(k);
 						
 						if(a == 0) {
+							
+							ArrayList<Double> logSumArrayList = new ArrayList<>();
+							
 							double logScore;
 							for (Pair<String, Integer> candidate : JointModel.getCandidates(node.word, false)) {
 								HashMap<Integer, Double> features = JointModel.getFeatures(node.word,
 										candidate.getKey(), candidate.getValue());
 								logScore = Tools.featureWeightProduct(features);
+								logSumArrayList.add(logScore);
 
 								for (int featureIndex : features.keySet()) {
 									String feature = JointModel.index2Feature.get(featureIndex);
@@ -334,10 +360,10 @@ public class Function implements DifferentiableFunction {
 
 							for (String feature : coarseWordProbabilities.keySet()) {
 								String key = JointModel.tagList.get(i) + "|" + node.word;
-//								double prob = divide(Math.exp(coarseWordProbabilities.get(feature)),	// XXX
+//								double prob = divide(Math.exp(coarseWordProbabilities.get(feature)),
 //										JointModel.generalEmissionProbabilities.get(key));
 								
-								double prob = Math.exp(coarseWordProbabilities.get(feature) - JointModel.generalEmissionProbabilities.get(key));
+								double prob = Math.exp(coarseWordProbabilities.get(feature) - JointModel.emissionDenominator.get(node.word));
 
 //								double featureWeightProd = coarseWordProbabilities.get(feature) * JointModel.weights.get(feature);
 //								double prob = Math.exp(featureWeightProd - JointModel.generalEmissionProbabilities.get(key));
@@ -356,6 +382,8 @@ public class Function implements DifferentiableFunction {
 						else {	// Negatives
 							double logScore;
 							ArrayList<String> neighbors = JointModel.getNeighbors(node.word);
+							// TODO Return a hashmap from method (neighbor -> prob)
+							
 					        for(String neighbor : neighbors) {
 					            for(Pair<String, Integer> candidate : JointModel.getCandidates(neighbor, false)) {
 					                HashMap<Integer, Double> features = JointModel.getFeatures(neighbor, candidate.getKey(), candidate.getValue());
@@ -394,10 +422,11 @@ public class Function implements DifferentiableFunction {
 //					        for(String neighborWord : JointModel.getNeighbors(node.word)) {
 						        for (String feature : coarseWordProbabilities.keySet()) {
 									String key = JointModel.tagList.get(i) + "|" + node.word;
-//									double prob = divide(Math.exp(coarseWordProbabilities.get(feature)),	// XXX
+//									double prob = divide(Math.exp(coarseWordProbabilities.get(feature)),
 //											JointModel.generalEmissionProbabilitiesNegative.get(key));
 									
-									double prob = Math.exp(coarseWordProbabilities.get(feature) - JointModel.generalEmissionProbabilitiesNegative.get(key));
+									// XXX ??
+									double prob = Math.exp(coarseWordProbabilities.get(feature) - JointModel.emissionDenominatorNegative.get(node.word));
 									
 //									double featureWeightProd = coarseWordProbabilities.get(feature) * JointModel.weights.get(feature);
 //									double prob = Math.exp(featureWeightProd - JointModel.generalEmissionProbabilitiesNegative.get(key));
@@ -419,6 +448,12 @@ public class Function implements DifferentiableFunction {
 			}
 		}
 
+//		System.out.println("For gradCoarse:");
+//		System.out.println("Min: " + Collections.min(gradCoarseProbabilities.values()) + " Max: " + Collections.max(gradCoarseProbabilities.values()));
+//		
+//		System.out.println("For gradCoarseNegative:");
+//		System.out.println("Min: " + Collections.min(gradCoarseProbabilitiesNegative.values()) + " Max: " + Collections.max(gradCoarseProbabilitiesNegative.values()));
+		
 		for(String feature : gradCoarseProbabilities.keySet()) {
 			double prob;
 			
@@ -503,6 +538,19 @@ public class Function implements DifferentiableFunction {
 	public double sumListValuesLog(List<Double> list) {
 
 		return Tools.logSumOfExponentials((ArrayList<Double>) list);
+	}
+	
+	public void findMinAndMax(double[] array) {
+		double max = -Double.MAX_VALUE;
+		double min = Double.MAX_VALUE;
+		for (int i = 0; i < array.length; i++) {
+			if (array[i] < min)
+				min = array[i];
+			if (array[i] > max)
+				max = array[i];
+		}
+		
+		System.out.println("Min: " + min + " Max: " + max);
 	}
 	
 }

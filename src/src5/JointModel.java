@@ -108,12 +108,15 @@ public class JointModel {
 
 	// weights
 	public static double[] tagFeatureWeights = null; // Feature sized weight array that we use in LBFGS-B
-	static HashMap<String, Double> weights = new HashMap<String, Double>();
+//	static HashMap<String, Double> weights = new HashMap<String, Double>();
 
 	// caching of features
 	static HashMap<String, HashMap<String, HashMap<Integer, HashMap<Integer, Double>>>> w2P2TypeFeatures = new HashMap<String, HashMap<String, HashMap<Integer, HashMap<Integer, Double>>>>();
 
 	public static PrintWriter pw = null;
+	
+	static HashMap<String, Double> emissionDenominator = new HashMap<>();
+	static HashMap<String, Double> emissionDenominatorNegative = new HashMap<>();
 
 	/* Methods for initializing & Pre-computation */
 
@@ -839,34 +842,42 @@ public class JointModel {
 		for (int i = 0; i < tagSize; i++) {
 			for (String word : allWords) {
 				ArrayList<Double> wordProbList = new ArrayList<>();
+				ArrayList<Double> wordProbListDenominator = new ArrayList<>();
+				
 				for (Pair<String, Integer> candidate : getCandidates(word, false)) {
 					HashMap<Integer, Double> features = getFeatures(word, candidate.getKey(), candidate.getValue());
 
-//					double sum = Tools.featureWeightProduct(features);
-
+					wordProbListDenominator.add(Tools.featureWeightProduct(features));
+					
 					 double sum = 0;
 					
 					 for (int featureIndex : features.keySet()) {
 						 String feature = index2Feature.get(featureIndex);
 						
 						 if (feature.startsWith(tagList.get(i)) || !feature.contains("|")) {
-							 sum += (coarseProbabilities.get(feature) * JointModel.weights.get(feature));
+							 sum += (coarseProbabilities.get(feature) * features.get(featureIndex));
 						 }
 					 }
 
 					wordProbList.add(sum);
 				}
 				generalEmissionProbabilities.put(tagList.get(i) + "|" + word, Tools.logSumOfExponentials(wordProbList));
+				
+				if(!emissionDenominator.containsKey(word)) {
+					emissionDenominator.put(word, Tools.logSumOfExponentials(wordProbListDenominator));
+				}
 
 				ArrayList<String> neighbors = JointModel.getNeighbors(word);
 				ArrayList<Double> wordProbListNeg = new ArrayList<>();
+				ArrayList<Double> wordProbListNegDenominator = new ArrayList<>();
+				
 				for (String neighbor : neighbors) {
 
 					for (Pair<String, Integer> candidate : getCandidates(neighbor, false)) {
 						HashMap<Integer, Double> features = getFeatures(neighbor, candidate.getKey(),
 								candidate.getValue());
 
-//						double sum = Tools.featureWeightProduct(features);
+						wordProbListNegDenominator.add(Tools.featureWeightProduct(features));
 
 						 double sum = 0;
 						
@@ -874,7 +885,7 @@ public class JointModel {
 							 String feature = index2Feature.get(featureIndex);
 							
 							 if (feature.startsWith(tagList.get(i)) || !feature.contains("|")) {
-								 sum += (coarseProbabilities.get(feature) * JointModel.weights.get(feature));
+								 sum += (coarseProbabilities.get(feature) * features.get(featureIndex));
 							 }
 						 }
 						wordProbListNeg.add(sum);
@@ -883,11 +894,12 @@ public class JointModel {
 				}
 				generalEmissionProbabilitiesNegative.put(tagList.get(i) + "|" + word,
 						Tools.logSumOfExponentials(wordProbListNeg));
+				
+				if(!emissionDenominatorNegative.containsKey(word)) {
+					emissionDenominatorNegative.put(word,Tools.logSumOfExponentials(wordProbListNegDenominator));
+				}
 			}
 		}
-		
-//		normalizeGeneralEmissions(generalEmissionProbabilities);
-//		normalizeGeneralEmissions(generalEmissionProbabilitiesNegative);
 		
 	}
 
@@ -1110,7 +1122,8 @@ public class JointModel {
 
 		if (type == PUNCTUATION) {
 			Tools.addFeature(features, "PUNCTUATION_" + word, 1, "tagDependent");
-		} else if (type == SUFFIX) {
+		} 
+		else if (type == SUFFIX) {
 			// suffix case
 			affix = word.substring(parent.length());
 			if (affix.length() > MAX_AFFIX_LENGTH || !suffixes.contains(affix))
@@ -1144,7 +1157,8 @@ public class JointModel {
 							"tagDependent");
 				}
 			}
-		} else if (type == REPEAT) {
+		} 
+		else if (type == REPEAT) {
 			// assuming affix is only on the right side
 			affix = word.substring(parent.length() + 1);
 			if (!suffixes.contains(affix))
@@ -1457,7 +1471,7 @@ public class JointModel {
 				initialProbabilities.put(s, weights[index]);
 			} else if (coarseProbabilities.containsKey(s)) {
 				coarseProbabilities.put(s, weights[index]);
-				JointModel.weights.put(s, weights[index]);
+//				JointModel.weights.put(s, weights[index]);
 			}
 		}
 	}
