@@ -57,13 +57,13 @@ public class Viterbi {
 			}
 		}
 
-		for (String sentence : JointModel.sentences) {
+		for (String sentence : JointModel.sentences) {	// For each sentence
 			sentence = sentence.replace("<start> ", "") + " <end>";
 			String[] words = sentence.toLowerCase().split("\\s+");
-			viterbi = new double[JointModel.tagList.size()][words.length];
+			viterbi = new double[JointModel.tagList.size()][words.length];	// Rows are tags, columns are words
 			vitPrev = new int[JointModel.tagList.size()][words.length];
 
-			for (int i = 0; i < words.length; i++) {
+			for (int i = 0; i < words.length; i++) {	// For each word (i) in the sentence
 
 				String word = words[i];
 				// if (!JointModel.allWords.contains(word)) {
@@ -73,12 +73,13 @@ public class Viterbi {
 
 				for (int j = 0; j < JointModel.tagList.size(); j++) {
 					//// System.out.println(statess.get(j)+" "+word);
-					double score = vitScore(JointModel.tagList.get(j), word, i, j);
+					double score = vitScore(JointModel.tagList.get(j), word, i, j);	// For each tog (j)
+					sumScore = 0;
 					//// System.out.println(statess.get(j)+" "+word+"
 					//// "+score);
 					viterbi[j][i] = score;
 				}
-
+				
 			}
 
 			String tag = "";
@@ -86,12 +87,14 @@ public class Viterbi {
 			int idx = 0;
 			double max = -Double.MAX_VALUE;
 			int n = words.length - 1;
-			for (int i = 0; i < JointModel.tagList.size(); i++) {
+			
+			for (int i = 0; i < JointModel.tagList.size(); i++) {	// Find the max tag for last word
 				if (viterbi[i][n] > max) {
 					max = viterbi[i][n];
 					idx = i;
 				}
 			}
+			
 			tag = "<end>" + "/" + JointModel.tagList.get(idx) + " " + tag;
 
 			idx = vitPrev[idx][n];
@@ -113,6 +116,12 @@ public class Viterbi {
 			cs++;
 
 		}
+		
+		System.out.println("-------------------------------");
+		for(String key : tagWord2Score.keySet()) {
+			System.out.println(key + "::" + tagWord2Score.get(key));
+		}
+		System.out.println("-------------------------------");
 
 		System.out.println("Total evaluate sentence: " + cs);
 		System.out.println("Total smoothed words: " + smoothed);
@@ -139,7 +148,7 @@ public class Viterbi {
 			int type = parentAndType.getValue();
 			score = scoreParent(word, parent, type, tag);
 			if (type == JointModel.STOP)
-				score *= JointModel.STOP_FACTOR;
+				score *= JointModel.STOP_FACTOR;	// STOP_FACTOR is 1
 			if (score > bestScore) {
 				bestScore = score;
 				bestParentAndType = parentAndType;
@@ -181,9 +190,9 @@ public class Viterbi {
 	static String segment(String word, String tag) {
 
 		// produces a segmentation
-		if (word.length() < JointModel.MIN_SEG_LENGTH) {
+		if (word.length() < JointModel.MIN_SEG_LENGTH) {	// MIN_SEG_LENGTH is zero, so here is dead code
 			tagWord2Morph.put(tag + "|" + word, word);
-			tagWord2Score.put(tag + "|" + word, 1.0); // FIXME
+			tagWord2Score.put(tag + "|" + word, JointModel.generalEmissionProbabilities.get(tag + "|" + word));
 
 			return word;
 		}
@@ -191,10 +200,10 @@ public class Viterbi {
 		if (word.contains("-")) {
 			String[] parts = word.split("-");
 			
-			if(parts.length == 0) {	// TODO
+			if(parts.length == 0) {
 				
 				tagWord2Morph.put(tag + "|" + word, word);
-				tagWord2Score.put(tag + "|" + word, 1.0); // FIXME
+				tagWord2Score.put(tag + "|" + word, JointModel.generalEmissionProbabilities.get(tag + "|" + word));
 				
 				return word;
 			}
@@ -202,17 +211,16 @@ public class Viterbi {
 			String seg = segment(parts[0], tag);
 			for (int i = 1; i < parts.length; i++)
 				seg += ("-" + segment(parts[i], tag));
+			
 			return seg;
 		}
 
-		// TODO
 		if (word.contains("'")) {
 			String[] parts = word.split("'");
 
 			if(parts.length == 0) {
-				
 				tagWord2Morph.put(tag + "|" + word, word);
-				tagWord2Score.put(tag + "|" + word, 1.0); // FIXME
+				tagWord2Score.put(tag + "|" + word, JointModel.generalEmissionProbabilities.get(tag + "|" + word));
 				
 				return word;
 			}
@@ -235,24 +243,24 @@ public class Viterbi {
 
 		if (parentAndType == null) {
 			tagWord2Morph.put(tag + "|" + word, word);
-			tagWord2Score.put(tag + "|" + word, 1.0); // FIXME
+			tagWord2Score.put(tag + "|" + word, sumScore);
 
 			return word;
 		}
 
 		String parent = parentAndType.getKey();
 		int type = parentAndType.getValue();
-
-		if (type == JointModel.PUNCTUATION) {
+		
+		if (type == JointModel.PUNCTUATION) {	// type == 8
 			tagWord2Morph.put(tag + "|" + word, word);
-			tagWord2Score.put(tag + "|" + word, sumScore); // FIXME
+			tagWord2Score.put(tag + "|" + word, sumScore);
 
 			return word;
 		}
 
-		if (type == JointModel.STOP) {
+		if (type == JointModel.STOP) {	// type == 1
 			tagWord2Morph.put(tag + "|" + word, word);
-			tagWord2Score.put(tag + "|" + word, sumScore); // FIXME
+			tagWord2Score.put(tag + "|" + word, sumScore);
 
 			return word;
 		}
@@ -267,14 +275,15 @@ public class Viterbi {
 			if (JointModel.suffixes.contains(suffix))
 				Tools.incrementMap(JointModel.suffixDist, suffix);
 			return segment(parent, tag) + "-" + suffix;
-		} else if (type == JointModel.REPEAT)
+		} 
+		else if (type == JointModel.REPEAT)
 			return segment(parent, tag) + word.charAt(parentLen) + "-" + word.substring(parentLen + 1);
 		else if (type == JointModel.MODIFY) {
-			// TODO : check
 			String parentSeg = segment(parent, tag);
 			return parentSeg.substring(0, parentSeg.length() - 1) + word.charAt(parentLen - 1) + "-"
 					+ word.substring(parentLen);
-		} else if (type == JointModel.DELETE) {
+		} 
+		else if (type == JointModel.DELETE) {
 			String parentSeg = segment(parent, tag);
 			int parentSegLen = parentSeg.length();
 			if (parentSeg.charAt(parentSegLen - 2) == '-')
@@ -288,7 +297,8 @@ public class Viterbi {
 			if (JointModel.prefixes.contains(prefix))
 				Tools.incrementMap(JointModel.prefixDist, prefix);
 			return prefix + "-" + segment(parent, tag);
-		} else if (type == JointModel.COMPOUND)
+		} 
+		else if (type == JointModel.COMPOUND)
 			return segment(word.substring(0, parentLen), tag) + "-" + segment(word.substring(parentLen), tag);
 
 		// null should not be returned at all. Having this to debug, instead of an
@@ -298,9 +308,10 @@ public class Viterbi {
 
 	// returns the logScore
 	static double scoreParent(String word, String parent, int type, String tag) {
-		return Tools.featureWeightProduct(JointModel.getFeatures(word, parent, type));
+		return Tools.featureWeightProductWithTag(JointModel.getFeatures(word, parent, type), tag);
 	}
 
+	/*
 	private static void leplaceSmoothing(String word, String i) {
 		Iterator it = JointModel.generalEmissionProbabilities.entrySet().iterator();
 		double sum = 0;
@@ -333,6 +344,7 @@ public class Viterbi {
 		System.out.println("\"" + word + "\" has been smoothed");
 		smoothed++;
 	}
+	*/
 
 	private static double vitScore(String tag, String word, int idxWord, int idxTag) {
 		double max = -Double.MAX_VALUE;
@@ -360,6 +372,12 @@ public class Viterbi {
 			}
 		}
 
+//		if(JointModel.generalEmissionProbabilities.containsKey(emit))
+//			emProb = JointModel.generalEmissionProbabilities.get(emit);
+//		else {
+//			emProb = 0.000000000001;
+//		}
+		
 		if (idxWord == 0) {
 			double transProb = Double.MIN_VALUE;
 			String trans = "<s>|" + tag;

@@ -41,9 +41,14 @@ public class Tools {
 			int index = JointModel.feature2Index.size();
 			JointModel.feature2Index.put(feature, index);
 			JointModel.index2Feature.add(feature);
-//			JointModel.weights.put(feature, 0.0001);
 
-			JointModel.coarseProbabilities.put(feature, 0.0001);
+			if(JointModel.generalEmissionProbabilities.containsKey(feature))
+				JointModel.coarseProbabilities.put(feature, JointModel.generalEmissionProbabilities.get(feature));
+			else if(JointModel.suffixProbabilities.containsKey(feature))
+				JointModel.coarseProbabilities.put(feature, JointModel.suffixProbabilities.get(feature));
+			else {
+				JointModel.coarseProbabilities.put(feature, 0.00000000001);
+			}
 
 			return index;
 		}
@@ -66,7 +71,7 @@ public class Tools {
 		}
 
 	}
-
+	
 	static ArrayList<String> returnTagDependentFeatures(String feature) {
 		ArrayList<String> tagDependentFeatures = new ArrayList<>();
 

@@ -29,11 +29,6 @@ public class Main {
 			e1.printStackTrace();
 		}
 
-//		for (String sentence : sentences)
-//			fillEmissionMap(sentence); // Creating emissionProbabilities map
-
-//		fillInitialFromFile("initialProb.txt");
-		
 		JointModel.initialize();
 
 		/* LBFGS-B part */
@@ -52,11 +47,12 @@ public class Main {
 			Main.pw.println("Final Value: " + finalValue);
 			System.out.println("Gradients:");
 			
-			JointModel.normalizeFeatures(finalGradient, "transition");
-			JointModel.normalizeFeatures(finalGradient, "initial");
-			JointModel.normalizeFeatures(finalGradient, "emission");
+//			JointModel.normalizeFeatures(finalGradient, "transition");
+//			JointModel.normalizeFeatures(finalGradient, "initial");
+//			JointModel.normalizeFeatures(finalGradient, "emission");
 
 			JointModel.updateProbabilities(finalGradient, JointModel.gradFeature2Index);
+			JointModel.updateGeneralEmissions();
 			JointModel.tagFeatureWeights = finalGradient;
 			
 			Tools.printDoubleArray(finalGradient);
