@@ -33,7 +33,7 @@ public class Tools {
 		return divide(sum, (Math.sqrt(norm1) * Math.sqrt(norm2)));
 	}
 
-	static int getFeatureIndex(String feature) {
+	static int getFeatureIndex(String feature, String decideAffix) {
 		if (!JointModel.feature2Index.containsKey(feature)) {
 			if (JointModel.TEST)
 				return -1; // if in testing phase, and feature does not exist already, do not create new
@@ -44,8 +44,38 @@ public class Tools {
 
 			if(JointModel.generalEmissionProbabilities.containsKey(feature))
 				JointModel.coarseProbabilities.put(feature, JointModel.generalEmissionProbabilities.get(feature));
-			else if(JointModel.suffixProbabilities.containsKey(feature))
+			else if(JointModel.suffixProbabilities.containsKey(feature) && decideAffix.equals("suffix"))
 				JointModel.coarseProbabilities.put(feature, JointModel.suffixProbabilities.get(feature));
+			else if(JointModel.prefixProbabilities.containsKey(feature) && decideAffix.equals("prefix"))
+				JointModel.coarseProbabilities.put(feature, JointModel.prefixProbabilities.get(feature));
+			else if(decideAffix.equals("stopSuffix")) {
+				String[] parts = feature.split("\\|STP_E_");
+				String tag = parts[0];
+				String affix = parts[1];
+				
+				String suffixFeature = tag + "|SUFFIX_" + affix;
+				
+				if(JointModel.suffixProbabilities.containsKey(suffixFeature)) {
+					JointModel.coarseProbabilities.put(feature, JointModel.suffixProbabilities.get(suffixFeature));
+				}
+				else {
+					JointModel.coarseProbabilities.put(feature, 0.00000000001);
+				}
+			}
+			else if(decideAffix.equals("stopPrefix")) {
+				String[] parts = feature.split("\\|STP_B_");
+				String tag = parts[0];
+				String affix = parts[1];
+				
+				String prefixFeature = tag + "|PREFIX_" + affix;
+				
+				if(JointModel.prefixProbabilities.containsKey(prefixFeature)) {
+					JointModel.coarseProbabilities.put(feature, JointModel.prefixProbabilities.get(prefixFeature));
+				}
+				else {
+					JointModel.coarseProbabilities.put(feature, 0.00000000001);
+				}
+			}
 			else {
 				JointModel.coarseProbabilities.put(feature, 0.00000000001);
 			}
@@ -56,16 +86,16 @@ public class Tools {
 
 	}
 
-	static void addFeature(HashMap<Integer, Double> features, String newFeature, double value, String decide) {
+	static void addFeature(HashMap<Integer, Double> features, String newFeature, double value, String decide, String decideAffix) {
 		int featureIndex;
 		if (decide.equals("tagDependent")) {
 			for (String tagDependentFeature : returnTagDependentFeatures(newFeature)) {
-				featureIndex = getFeatureIndex(tagDependentFeature);
+				featureIndex = getFeatureIndex(tagDependentFeature, decideAffix);
 				if (featureIndex != -1)
 					features.put(featureIndex, value);
 			}
 		} else {
-			featureIndex = getFeatureIndex(newFeature);
+			featureIndex = getFeatureIndex(newFeature, decideAffix);
 			if (featureIndex != -1)
 				features.put(featureIndex, value);
 		}

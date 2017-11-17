@@ -45,8 +45,7 @@ public class Function implements DifferentiableFunction {
 		if(iterCount == 0) {
 			JointModel.updateGeneralEmissions();
 		}
-		
-		if (iterCount != 0) {
+		else if (iterCount != 0) {
 
 			JointModel.updateProbabilities(point, JointModel.gradFeature2Index);
 			JointModel.updateGeneralEmissions();
@@ -82,7 +81,7 @@ public class Function implements DifferentiableFunction {
 //		System.out.println("After 2nd normalization"); 
 //		findMinAndMax(fv.gradient);
 		
-		System.out.println("Iteration: " + iterCount);
+		System.out.println("Inside-Iteration: " + iterCount);
 
 		return fv;
 	}
@@ -98,19 +97,13 @@ public class Function implements DifferentiableFunction {
 			int counter = 0;
 			double sumNum = 0.0;
 			double sumDenom = 0.0;
-			for (HashMap<Integer, Node> lattice : globalMap.values()) { // Each
-																		// sentence's
-																		// lattices
+			for (HashMap<Integer, Node> lattice : globalMap.values()) { // Each sentence's lattices
 				for (Node endState : Main.returnEndStates(lattice)) {
 					if (counter == 0) {
-						sumNum += sumListValuesExp(endState.tagScores); // Original
-																		// lattice's
-																		// score
+						sumNum += sumListValuesExp(endState.tagScores); // Original lattice's score
 						counter++;
 					} else {
-						sumDenom += sumListValuesExp(endState.tagScores); // Negative
-																		// samples'
-																		// scores
+						sumDenom += sumListValuesExp(endState.tagScores); // Negative samples' scores
 					}
 				}
 			}
@@ -122,11 +115,13 @@ public class Function implements DifferentiableFunction {
 		}
 
 		// Regularization
-		for (double weight : iterWeights) {
-			functionValue -= LAMBDA_EM * Math.pow(weight, 2);
-		}
-		functionValue *= -1; // -1 because of minimizing
+//		for (double weight : iterWeights) {
+//			functionValue -= LAMBDA_EM * Math.pow(weight, 2);
+//		}
+//		functionValue *= -1; // -1 because of minimizing
 
+		System.out.println("f = " + functionValue);
+		
 		return functionValue;
 	}
 
@@ -186,10 +181,17 @@ public class Function implements DifferentiableFunction {
 
 				double initOrgScoreEnd = 0.0;
 				double initNegScoreEnd = 0.0;
+				String decideOriginal;
 
 				for (HashMap<Integer, HashMap<Integer, Node>> globalMap : JointModel.sentenceGlobals) {
 					
 					for (int a = 0; a < globalMap.size(); a++) {
+						
+						if(a == 0)
+							decideOriginal = "original";
+						else
+							decideOriginal = "negative";
+					
 
 						HashMap<Integer, Node> lattice = globalMap.get(a);
 						ArrayList<Integer> startStates = JointModel.returnStartStates(lattice);
@@ -198,10 +200,10 @@ public class Function implements DifferentiableFunction {
 							Node n = lattice.get(k);
 							for (int k1 : n.next) {
 								Node n2 = lattice.get(k1);
-								values.add(p(i, j, n, n2));  //calculate transition i-j
+								values.add(p(i, j, n, n2, decideOriginal));  //calculate transition i-j
 								
 								for (int k2 = 0; k2 < JointModel.tagSize; k2++) {
-									valuesDenom.add(p(i, k2, n, n2));  //calculate transition i-k
+									valuesDenom.add(p(i, k2, n, n2, decideOriginal));  //calculate transition i-k
 								}
 								
 								if (n2.isEndState) {  // if node end state calculate initial i-</s>
@@ -217,18 +219,29 @@ public class Function implements DifferentiableFunction {
 
 								double emission = 0;
 								
-								if(JointModel.generalEmissionProbabilities.containsKey(JointModel.tagList.get(i) + "|" + n.word)) {
-									emission = JointModel.generalEmissionProbabilities.get(JointModel.tagList.get(i) + "|" + n.word);
+								String key = JointModel.tagList.get(i) + "|" + n.word;
+								
+								if(decideOriginal.equals("original") && JointModel.generalEmissionProbabilities.containsKey(key)) {
+									emission = JointModel.generalEmissionProbabilities.get(key);
+								}
+								else if(JointModel.generalEmissionProbabilitiesNegative.containsKey(key)) {
+									emission = JointModel.generalEmissionProbabilitiesNegative.get(key);
 								}
 								
 								valuesInit.add(emission
 										+ JointModel.initialProbabilities.get("<s>|" + JointModel.tagList.get(i)));  // calculate initial <s>-i
+								
 								for (int k2 = 0; k2 < JointModel.tagSize; k2++) {
 									
 									double emission2 = 0;
 									
-									if(JointModel.generalEmissionProbabilities.containsKey(JointModel.tagList.get(k2) + "|" + n.word)) {
-										emission2 = JointModel.generalEmissionProbabilities.get(JointModel.tagList.get(k2) + "|" + n.word);
+									String key2 = JointModel.tagList.get(k2) + "|" + n.word;
+									
+									if(decideOriginal.equals("original") && JointModel.generalEmissionProbabilities.containsKey(key2)) {
+										emission = JointModel.generalEmissionProbabilities.get(key2);
+									}
+									else if(JointModel.generalEmissionProbabilitiesNegative.containsKey(key2)) {
+										emission = JointModel.generalEmissionProbabilitiesNegative.get(key2);
 									}
 									
 									valuesInitDenom.add(emission2
@@ -320,19 +333,16 @@ public class Function implements DifferentiableFunction {
 						
 						if(a == 0) {
 							
-							ArrayList<Double> logSumArrayList = new ArrayList<>();
-							
 							double logScore;
 							for (Pair<String, Integer> candidate : JointModel.getCandidates(node.word, false)) {
 								HashMap<Integer, Double> features = JointModel.getFeatures(node.word,
 										candidate.getKey(), candidate.getValue());
 								logScore = Tools.featureWeightProduct(features);
-								logSumArrayList.add(logScore);
 
 								for (int featureIndex : features.keySet()) {
 									String feature = JointModel.index2Feature.get(featureIndex);
 									
-									if (feature.startsWith(JointModel.tagList.get(i))) {	// Tag-dependent
+									if (feature.startsWith(JointModel.tagList.get(i) + "|")) {	// Tag-dependent
 										if (coarseWordProbabilities.containsKey(feature)) {
 											double[] logArray = new double[2];
 											logArray[0] = coarseWordProbabilities.get(feature);
@@ -363,7 +373,8 @@ public class Function implements DifferentiableFunction {
 //								double prob = divide(Math.exp(coarseWordProbabilities.get(feature)),
 //										JointModel.generalEmissionProbabilities.get(key));
 								
-								double prob = Math.exp(coarseWordProbabilities.get(feature) - JointModel.emissionDenominator.get(node.word));
+								// XXX
+								double prob = Math.exp(coarseWordProbabilities.get(feature) - JointModel.emissionDenominator.get(node.word)); //* JointModel.generalEmissionProbabilitiesBackup.get(key);
 
 //								double featureWeightProd = coarseWordProbabilities.get(feature) * JointModel.weights.get(feature);
 //								double prob = Math.exp(featureWeightProd - JointModel.generalEmissionProbabilities.get(key));
@@ -382,7 +393,6 @@ public class Function implements DifferentiableFunction {
 						else {	// Negatives
 							double logScore;
 							ArrayList<String> neighbors = JointModel.getNeighbors(node.word);
-							// TODO Return a hashmap from method (neighbor -> prob)
 							
 					        for(String neighbor : neighbors) {
 					            for(Pair<String, Integer> candidate : JointModel.getCandidates(neighbor, false)) {
@@ -391,7 +401,7 @@ public class Function implements DifferentiableFunction {
 					                
 									for (int featureIndex : features.keySet()) {
 										String feature = JointModel.index2Feature.get(featureIndex);
-										if (feature.startsWith(JointModel.tagList.get(i))) {
+										if (feature.startsWith(JointModel.tagList.get(i) + "|")) {
 											if (coarseWordProbabilities.containsKey(feature)) {
 												double[] logArray = new double[2];
 												logArray[0] = coarseWordProbabilities.get(feature);
@@ -425,8 +435,8 @@ public class Function implements DifferentiableFunction {
 //									double prob = divide(Math.exp(coarseWordProbabilities.get(feature)),
 //											JointModel.generalEmissionProbabilitiesNegative.get(key));
 									
-									// XXX ??
-									double prob = Math.exp(coarseWordProbabilities.get(feature) - JointModel.emissionDenominatorNegative.get(node.word));
+									// XXX
+									double prob = Math.exp(coarseWordProbabilities.get(feature) - JointModel.emissionDenominatorNegative.get(node.word)); //* JointModel.generalEmissionProbabilitiesBackup.get(key);
 									
 //									double featureWeightProd = coarseWordProbabilities.get(feature) * JointModel.weights.get(feature);
 //									double prob = Math.exp(featureWeightProd - JointModel.generalEmissionProbabilitiesNegative.get(key));
@@ -495,13 +505,18 @@ public class Function implements DifferentiableFunction {
 	 *            the number of state s_j
 	 * @return P
 	 */
-	public double p(int i, int j, Node node, Node next) {
+	public double p(int i, int j, Node node, Node next, String decideOriginal) {
 		double num = 0.0;
 
 		double emission = 0;
 		
-		if(JointModel.generalEmissionProbabilities.containsKey(JointModel.tagList.get(i) + "|" + next.word)) {
-			emission = JointModel.generalEmissionProbabilities.get(JointModel.tagList.get(i) + "|" + next.word);
+		String key = JointModel.tagList.get(i) + "|" + next.word;
+		
+		if(decideOriginal.equals("original") && JointModel.generalEmissionProbabilities.containsKey(key)) {
+			emission = JointModel.generalEmissionProbabilities.get(key);
+		}
+		else if(JointModel.generalEmissionProbabilitiesNegative.containsKey(key)) {
+			emission = JointModel.generalEmissionProbabilitiesNegative.get(key);
 		}
 		
 		num = JointModel.transitionProbabilities.get(JointModel.tagList.get(i) + "|" + JointModel.tagList.get(j))

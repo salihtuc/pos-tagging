@@ -47,9 +47,9 @@ public class Main {
 			Main.pw.println("Final Value: " + finalValue);
 			System.out.println("Gradients:");
 			
-//			JointModel.normalizeFeatures(finalGradient, "transition");
-//			JointModel.normalizeFeatures(finalGradient, "initial");
-//			JointModel.normalizeFeatures(finalGradient, "emission");
+			JointModel.normalizeFeatures(finalGradient, "transition");
+			JointModel.normalizeFeatures(finalGradient, "initial");
+			JointModel.normalizeFeatures(finalGradient, "emission");
 
 			JointModel.updateProbabilities(finalGradient, JointModel.gradFeature2Index);
 			JointModel.updateGeneralEmissions();
